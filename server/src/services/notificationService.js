@@ -11,7 +11,7 @@ class NotificationService {
     this.notificationQueue = []
     this.userPreferences = new Map()
     this.scheduledNotifications = new Map()
-    
+
     this.initializeEmailTransporter()
     this.startNotificationProcessor()
     this.initializeSampleData()
@@ -55,7 +55,7 @@ class NotificationService {
         archived: false
       }
     ]
-    
+
     this.notificationQueue.push(...sampleNotifications)
     console.log('📱 Notification service initialized with sample data')
   }
@@ -68,7 +68,7 @@ class NotificationService {
   async sendPushNotification(userId, notification) {
     // Ensure userId is always a string for consistency
     const userIdString = userId ? userId.toString() : userId
-    
+
     const notificationData = {
       id: this.generateNotificationId(),
       userId: userIdString,  // Always use string version
@@ -85,7 +85,7 @@ class NotificationService {
       // Save to database
       const dbNotification = new Notification(notificationData)
       await dbNotification.save()
-      
+
       console.log(`📢 Notification saved to database:`, {
         id: notificationData.id,
         userId: notificationData.userId,
@@ -129,7 +129,7 @@ class NotificationService {
 
       const result = await this.emailTransporter.sendMail(mailOptions)
       console.log('📧 Email alert sent:', result.messageId)
-      
+
       return { success: true, messageId: result.messageId }
     } catch (error) {
       console.error('❌ Email alert failed:', error)
@@ -186,7 +186,7 @@ class NotificationService {
 
   formatAlertData(data) {
     if (!data || typeof data !== 'object') return ''
-    
+
     let html = '<div style="margin-top: 20px; padding: 15px; background-color: #f8fafc; border-radius: 8px;">'
     Object.keys(data).forEach(key => {
       html += `<p><strong>${key}:</strong> ${data[key]}</p>`
@@ -402,13 +402,14 @@ class NotificationService {
 
   // User preferences
   setUserPreferences(userId, preferences) {
-    this.userPreferences.set(userId, {
+    const userIdString = userId.toString()
+    this.userPreferences.set(userIdString, {
       pushNotifications: preferences.pushNotifications !== false,
       emailAlerts: preferences.emailAlerts !== false,
       notificationTypes: preferences.notificationTypes || [
-        'new_email', 
-        'classification', 
-        'bulk_operation', 
+        'new_email',
+        'classification',
+        'bulk_operation',
         'sync_status',
         'email_operation',
         'profile_update',
@@ -426,12 +427,13 @@ class NotificationService {
   }
 
   getUserPreferences(userId) {
-    return this.userPreferences.get(userId) || {
+    const userIdString = userId.toString()
+    return this.userPreferences.get(userIdString) || {
       pushNotifications: true,
       emailAlerts: false,
       notificationTypes: [
-        'new_email', 
-        'classification', 
+        'new_email',
+        'classification',
         'bulk_operation',
         'sync_status',
         'email_operation',
@@ -488,7 +490,7 @@ class NotificationService {
     if (this.notificationQueue.length === 0) return
 
     const notification = this.notificationQueue.shift()
-    const preferences = this.getUserPreferences(notification.userId)
+    const preferences = this.getUserPreferences(notification.userId.toString())
 
     // Check if user wants this type of notification
     if (!preferences.notificationTypes.includes(notification.type)) {
@@ -548,7 +550,7 @@ class NotificationService {
   // Clear old notifications
   clearOldNotifications(maxAge = 24 * 60 * 60 * 1000) { // 24 hours
     const cutoff = new Date(Date.now() - maxAge)
-    this.notificationQueue = this.notificationQueue.filter(n => 
+    this.notificationQueue = this.notificationQueue.filter(n =>
       new Date(n.timestamp) > cutoff
     )
   }

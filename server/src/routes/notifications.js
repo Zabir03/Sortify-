@@ -24,17 +24,17 @@ router.get('/', protect, asyncHandler(async (req, res) => {
 
     const userIdString = userId.toString()
     console.log('Fetching notifications for user:', userIdString)
-    
+
     // Optimized: Single query to get all non-archived notifications
     // Use lean() for better performance and convert to plain objects
     let allNotifications = await Notification.find({
       userId: userIdString,
       archived: false
     })
-    .sort({ timestamp: -1 })
-    .lean() // Use lean() for better performance
-    .limit(parseInt(limit) + parseInt(offset)) // Limit query results
-    
+      .sort({ timestamp: -1 })
+      .lean() // Use lean() for better performance
+      .limit(parseInt(limit) + parseInt(offset)) // Limit query results
+
     console.log('Found notifications for user:', allNotifications.length)
 
     // If no notifications, create welcome notification asynchronously (don't wait)
@@ -45,25 +45,25 @@ router.get('/', protect, asyncHandler(async (req, res) => {
         title: 'Welcome to Sortify',
         'data.welcome': true
       })
-      .lean()
-      .then(existingWelcome => {
-        if (!existingWelcome) {
-          // Create welcome notification asynchronously
-          notificationService.sendPushNotification(userIdString, {
-            type: 'system',
-            title: 'Welcome to Sortify',
-            message: 'Your notification center is ready! You\'ll receive updates about your email management here.',
-            data: { welcome: true }
-          }).catch(err => {
-            console.error('Error creating welcome notification:', err)
-            // Don't throw - this is non-critical
-          })
-        }
-      })
-      .catch(err => {
-        console.error('Error checking for welcome notification:', err)
-        // Don't throw - this is non-critical
-      })
+        .lean()
+        .then(existingWelcome => {
+          if (!existingWelcome) {
+            // Create welcome notification asynchronously
+            notificationService.sendPushNotification(userIdString, {
+              type: 'system',
+              title: 'Welcome to Sortify',
+              message: 'Your notification center is ready! You\'ll receive updates about your email management here.',
+              data: { welcome: true }
+            }).catch(err => {
+              console.error('Error creating welcome notification:', err)
+              // Don't throw - this is non-critical
+            })
+          }
+        })
+        .catch(err => {
+          console.error('Error checking for welcome notification:', err)
+          // Don't throw - this is non-critical
+        })
     }
 
     // Apply type filter if specified
@@ -91,7 +91,7 @@ router.get('/', protect, asyncHandler(async (req, res) => {
   } catch (error) {
     console.error('Get notifications error:', error)
     console.error('Error stack:', error.stack)
-    
+
     // Return empty array on error instead of failing completely
     res.status(500).json({
       success: false,
@@ -128,7 +128,7 @@ router.put('/:id/read', protect, asyncHandler(async (req, res) => {
         id: id,
         archived: false
       })
-      
+
       if (notification && notification.userId !== userIdString) {
         console.log('Updating notification userId to match current user for mark as read operation')
         await Notification.findByIdAndUpdate(notification._id, {
@@ -146,7 +146,7 @@ router.put('/:id/read', protect, asyncHandler(async (req, res) => {
         archived: false,
         read: false
       }).sort({ timestamp: -1 })
-      
+
       if (notification) {
         console.log('Found unread notification as fallback:', notification.title)
       }
@@ -156,7 +156,7 @@ router.put('/:id/read', protect, asyncHandler(async (req, res) => {
       const availableNotifications = await Notification.find({
         userId: userIdString  // Use string version consistently
       }).select('id userId title read archived').limit(10)
-      
+
       return res.status(404).json({
         success: false,
         message: 'Notification not found',
@@ -252,6 +252,49 @@ router.put('/read-all', protect, asyncHandler(async (req, res) => {
   }
 }))
 
+// @desc    Clear all notifications
+// @route   DELETE /api/notifications/clear-all
+// @access  Private
+router.delete('/clear-all', protect, asyncHandler(async (req, res) => {
+  try {
+    const userId = req.user._id
+    const userIdString = userId.toString()
+
+    // Mark all user notifications as archived in database instead of deleting them
+    const result = await Notification.updateMany(
+      {
+        userId: userIdString,  // Use string version consistently
+        archived: false
+      },
+      {
+        $set: {
+          archived: true,
+          archivedAt: new Date().toISOString()
+        }
+      }
+    )
+
+    console.log('Archived all notifications in database:', {
+      userId: userIdString,
+      modifiedCount: result.modifiedCount
+    })
+
+    res.json({
+      success: true,
+      message: `Archived ${result.modifiedCount} notifications`,
+      count: result.modifiedCount
+    })
+
+  } catch (error) {
+    console.error('Clear all notifications error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear all notifications',
+      error: error.message
+    })
+  }
+}))
+
 // @desc    Delete notification
 // @route   DELETE /api/notifications/:id
 // @access  Private
@@ -302,56 +345,13 @@ router.delete('/:id', protect, asyncHandler(async (req, res) => {
   }
 }))
 
-// @desc    Clear all notifications
-// @route   DELETE /api/notifications/clear-all
-// @access  Private
-router.delete('/clear-all', protect, asyncHandler(async (req, res) => {
-  try {
-    const userId = req.user._id
-    const userIdString = userId.toString()
-
-    // Mark all user notifications as archived in database instead of deleting them
-    const result = await Notification.updateMany(
-      {
-        userId: userIdString,  // Use string version consistently
-        archived: false
-      },
-      {
-        $set: {
-          archived: true,
-          archivedAt: new Date().toISOString()
-        }
-      }
-    )
-
-    console.log('Archived all notifications in database:', {
-      userId: userIdString,
-      modifiedCount: result.modifiedCount
-    })
-
-    res.json({
-      success: true,
-      message: `Archived ${result.modifiedCount} notifications`,
-      count: result.modifiedCount
-    })
-
-  } catch (error) {
-    console.error('Clear all notifications error:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to clear all notifications',
-      error: error.message
-    })
-  }
-}))
-
 // @desc    Get notification preferences
 // @route   GET /api/notifications/preferences
 // @access  Private
 router.get('/preferences', protect, asyncHandler(async (req, res) => {
   try {
     const userId = req.user._id
-    
+
     if (!userId) {
       return res.status(400).json({
         success: false,
@@ -397,9 +397,9 @@ router.put('/preferences', protect, asyncHandler(async (req, res) => {
 
     // Validate preferences - include all valid notification types
     const validTypes = [
-      'new_email', 
-      'classification', 
-      'bulk_operation', 
+      'new_email',
+      'classification',
+      'bulk_operation',
       'sync_status',
       'email_operation',
       'profile_update',
@@ -413,7 +413,7 @@ router.put('/preferences', protect, asyncHandler(async (req, res) => {
       'info',
       'test'
     ]
-    
+
     if (preferences.notificationTypes && Array.isArray(preferences.notificationTypes)) {
       const invalidTypes = preferences.notificationTypes.filter(type => !validTypes.includes(type))
       if (invalidTypes.length > 0) {

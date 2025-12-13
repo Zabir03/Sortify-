@@ -6,7 +6,7 @@ export const KEYWORD_CATEGORIES = {
   'Placement': {
     priority: 'high',
     primaryKeywords: [
-      'placement', 'job', 'recruitment', 'interview', 'career', 'apply', 'deadline', 
+      'placement', 'job', 'recruitment', 'interview', 'career', 'apply', 'deadline',
       'opportunity', 'campus', 'drive', 'resume', 'shortlisting', 'assessment',
       'su placement', 'placement officer', 'sharda informatics', 'placement drive',
       'hiring', 'recruiter', 'employment', 'position', 'opening', 'vacancy',
@@ -14,12 +14,14 @@ export const KEYWORD_CATEGORIES = {
       'career opportunity', 'talent acquisition', 'hr round', 'technical round',
       'aptitude test', 'coding test', 'group discussion', 'gd', 'final round',
       'offer letter', 'joining', 'onboarding', 'pre-placement', 'ppo', 'fppo',
-      'campus hiring', 'off-campus', 'on-campus', 'walk-in drive', 'walk in drive'
+      'campus hiring', 'off-campus', 'on-campus', 'walk-in drive', 'walk in drive',
+      'pool campus', 'joint campus', 'virtual drive', 'virtual recruitment',
+      'online assessment', 'hackathon hiring', 'diversity hiring', 'intern hiring'
     ],
     secondaryKeywords: [
       'company', 'position', 'role', 'skills', 'shortlisted students', 'talent hiring',
-      'accenture', 'tcs', 'infosys', 'wipro', 'cognizant', 'google', 'microsoft', 
-      'amazon', 'ibm', 'oracle', 'sap', 'adobe', 'meta', 'apple', 'salary', 'package', 
+      'accenture', 'tcs', 'infosys', 'wipro', 'cognizant', 'google', 'microsoft',
+      'amazon', 'ibm', 'oracle', 'sap', 'adobe', 'meta', 'apple', 'salary', 'package',
       'ctc', 'pre-placement', 'training', 'mandatory attendance', 'agent ai challenge',
       'network people services', 'npst', 'josh technology', 'tech mahindra',
       'quality assurance', 'qa', 'software engineer', 'developer', 'analyst',
@@ -46,11 +48,20 @@ export const KEYWORD_CATEGORIES = {
       'application', 'candidate', 'next steps', 'reach out', 'follow up',
       'document', 'paperwork', 'form', 'formality', 'clearance', 'address',
       'contact', 'location', 'venue', 'schedule', 'timing', 'round', 'stage',
-      'level', 'process', 'procedure'
+      'level', 'process', 'procedure',
+      'deloitte', 'kpmg', 'ey', 'pwc', 'goldman sachs', 'jpmorgan', 'wells fargo',
+      'morgan stanley', 'barclays', 'american express', 'mastercard', 'visa',
+      'sde', 'graduate engineer trainee', 'get', 'pget', 'mt', 'management trainee',
+      'associate', 'senior analyst', 'business analyst', 'data analyst', 'data scientist',
+      'devops', 'full stack', 'backend', 'frontend', 'ui/ux', 'product manager',
+      'bda', 'business development', 'sales', 'marketing', 'operations',
+      'bond', 'service agreement', 'probation', 'training period',
+      'immediate joiner', 'notice period', 'buyout', 'offer acceptance',
+      'letter of intent', 'loi', 'confirmation', 'date of joining', 'doj'
     ],
     phrases: [
-      'placement drive', 'job opportunity', 'apply now', 'interview round', 
-      'career opportunity', 'campus recruitment', 'selection process', 
+      'placement drive', 'job opportunity', 'apply now', 'interview round',
+      'career opportunity', 'campus recruitment', 'selection process',
       'resume shortlisting', 'upcoming resume shortlisting', 'placement opportunity',
       'agent ai challenge', 'pre-placement training', 'mandatory attendance',
       'application for the position', 'next stage of your application',
@@ -112,7 +123,7 @@ export const KEYWORD_CATEGORIES = {
       ]
     }
   },
-  
+
   'NPTEL': {
     priority: 'high',
     primaryKeywords: [
@@ -127,8 +138,8 @@ export const KEYWORD_CATEGORIES = {
       'swayam-nptel', 'weeks', 'e-verifiable', 'iit roorkee'
     ],
     secondaryKeywords: [
-      'star badges', 'scmpro', 'joint certification', 'cii', 
-      'professor who never stopped learning', 'lifelong learning', 
+      'star badges', 'scmpro', 'joint certification', 'cii',
+      'professor who never stopped learning', 'lifelong learning',
       'supply chain career', 'advance your career', 'best wishes from nptel team',
       'iit', 'indian institute of technology', 'swayam', 'swayam nptel',
       'online course', 'mooc', 'massive open online course', 'video lectures',
@@ -137,7 +148,13 @@ export const KEYWORD_CATEGORIES = {
       'teaching assistant', 'ta', 'forum', 'discussion forum', 'peer assessment',
       'final exam', 'proctored', 'proctoring', 'exam slot', 'hall ticket',
       'admit card', 'score', 'grade', 'passing criteria', 'certificate criteria',
-      'pass percentage', 'minimum score', 'average score', 'topper', 'leaderboard'
+      'pass percentage', 'minimum score', 'average score', 'topper', 'leaderboard',
+      'gold medal', 'silver medal', 'elite', 'successfully completed',
+      'local chapter', 'spoc', 'college login', 'mentor', 'mentee',
+      'exam fees', 'fee waiver', 'hall ticket download', 'exam centre change',
+      'iit bombay', 'iit kharagpur', 'iit kanpur', 'iit delhi', 'iit guwahati',
+      'iisc bangalore', 'course instructor', 'lecture slides', 'transcripts',
+      'hard copy certificate', 'soft copy', 'digilocker', 'credit transfer'
     ],
     phrases: [
       'course registration', 'lecture video', 'nptel course', 'online exam',
@@ -191,7 +208,7 @@ export const KEYWORD_CATEGORIES = {
       ]
     }
   },
-  
+
   'HOD': {
     priority: 'high',  // Changed to high to catch before Professor
     primaryKeywords: [
@@ -211,7 +228,13 @@ export const KEYWORD_CATEGORIES = {
       'reschedule exam', 'exam reschedule', 'date change', 'schedule change',
       'evaluation reschedule', 'project evaluation', 'semester schedule',
       'academic calendar', 'department calendar', 'cse department',
-      'computer science department', 'department of computer science'
+      'computer science department', 'department of computer science',
+      'faculty advisor', 'class coordinator', 'course coordinator',
+      'attend immediately', 'report immediately', 'strict action',
+      'disciplinary action', 'compliance', 'explanation required', 'show cause',
+      'attendance shortage', 'detained', 'debarred', 'parents meeting',
+      'guardian call', 'undertaking', 'affidavit', 'late fee', 'fine',
+      'no dues', 'clearance', 'bonafide', 'lor', 'recommendation letter'
     ],
     phrases: [
       'hod office', 'head of department', 'department notice',
@@ -247,7 +270,7 @@ export const KEYWORD_CATEGORIES = {
       ]
     }
   },
-  
+
   'E-Zone': {
     priority: 'high',
     primaryKeywords: [
@@ -274,7 +297,11 @@ export const KEYWORD_CATEGORIES = {
       'blocked', 'credentials', 'enrollment number', 'expired', 'invalid',
       'locked', 'maintenance', 'registration number', 'roll number',
       'session', 'student id', 'system', 'timeout', 'update', 'user',
-      'user id', 'username', 'verified'
+      'user id', 'username', 'verified', 'erp', 'ums', 'student login',
+      'attendance view', 'marks view', 'timetable', 'fee receipt',
+      'examination form', 'admit card download', 'result view',
+      'grade card', 'transcript request', 'hostel booking', 'mess feedback',
+      'library dues', 'wifi login', 'internet access', 'mac address registration'
     ],
     phrases: [
       'sharda e-zone', 'one time password', 'valid for today',
@@ -295,7 +322,7 @@ export const KEYWORD_CATEGORIES = {
     ],
     exclusionKeywords: [
       'placement', 'nptel', 'job', 'interview',
-      'chatgpt', 'openai', 'chat gpt', 'open ai', 
+      'chatgpt', 'openai', 'chat gpt', 'open ai',
       'noreply@email.openai.com', 'email.openai.com',
       'geeksforgeeks', 'geeks for geeks', 'gfg', 'geeksforgeeks.org',
       'github', 'github.com', 'support@github.com', 'secrets detected'
@@ -322,7 +349,7 @@ export const KEYWORD_CATEGORIES = {
       ]
     }
   },
-  
+
   'Promotions': {
     priority: 'high',
     primaryKeywords: [
@@ -358,7 +385,14 @@ export const KEYWORD_CATEGORIES = {
       'sharda group employees', 'sharda group community', 'immediate family members',
       'exclusive privilege', 'healthcare privilege', 'special offer',
       'ground floor', 'shardacare healthcity', 'team shardacare',
-      'camp highlights', 'event detail', 'venue', 'contact'
+      'camp highlights', 'event detail', 'venue', 'contact',
+      'coupon', 'voucher', 'cashback', 'rewards', 'points', 'redeem',
+      'referral', 'refer & earn', 'subscription', 'trial', 'premium',
+      'pro', 'plus', 'membership', 'early access', 'pre-order',
+      'launch offer', 'festive sale', 'diwali sale', 'new year sale',
+      'summer sale', 'monsoon sale', 'winter sale', 'clearance',
+      'stock clear', 'gift card', 'gift voucher', 'surprise gift',
+      'lucky draw', 'contest entry', 'win exciting prizes'
     ],
     phrases: [
       'limited time offer', 'special discount', 'buy now', 'save money',
@@ -416,7 +450,7 @@ export const KEYWORD_CATEGORIES = {
       ]
     }
   },
-  
+
   'Whats happening': {
     priority: 'high',
     primaryKeywords: [
@@ -453,7 +487,14 @@ export const KEYWORD_CATEGORIES = {
       'hr department', 'human resource department', 'dean students welfare',
       'ncc unit', 'ncc cadets', 'armed forces flag day', 'campus safety',
       'fire prevention', 'emergency response', 'emergency handling',
-      'sharda hospital', 'shardacare healthcity', 'medical wing'
+      'sharda hospital', 'shardacare healthcity', 'medical wing',
+      'freshers party', 'theme party', 'dj night', 'star night',
+      'celebrity visit', 'flash mob', 'nukkad natak', 'street play',
+      'blood donation', 'health camp', 'marathon', 'cyclothon', 'walkathon',
+      'yoga session', 'meditation', 'sports tournament', 'cricket match',
+      'football match', 'basketball match', 'badminton tournament',
+      'club activity', 'society event', 'student chapter', 'ieee', 'acm',
+      'csi', 'gdsc', 'robotics club', 'coding club', 'drama club', 'music club'
     ],
     phrases: [
       'campus event', 'what\'s happening', 'campus announcement',
@@ -511,7 +552,7 @@ export const KEYWORD_CATEGORIES = {
       ]
     }
   },
-  
+
   'Professor': {
     priority: 'high',  // Changed to high priority to catch before Placement
     primaryKeywords: [
@@ -543,7 +584,13 @@ export const KEYWORD_CATEGORIES = {
       'low attendance', 'attendance requirement', 'minimum attendance', 'attendance policy',
       'lecture schedule', 'tutorial schedule', 'lab schedule', 'office hours',
       'consultation hours', 'meeting', 'appointment', 'project guidance', 'thesis guidance',
-      'research guidance', 'dissertation', 'thesis', 'research work', 'project work'
+      'research guidance', 'dissertation', 'thesis', 'research work', 'project work',
+      'lms', 'moodle', 'google classroom', 'erps', 'icloud', 'assignment deadline',
+      'lab manual', 'record file', 'practical file', 'observation notebook',
+      'marks', 'grades', 'results', 'answer sheet', 'rechecking', 're-evaluation',
+      'makeup exam', 'special exam', 'backlog', 'reappear', 'improvement exam',
+      'syllabus coverage', 'extra class', 'remedial class', 'doubt session',
+      'mentor mentee meeting', 'proctor meeting', 'parent teacher meeting'
     ],
     phrases: [
       'assistant professor', 'associate professor', 'project evaluation',
@@ -622,7 +669,7 @@ export const KEYWORD_CATEGORIES = {
       ]
     }
   },
-  
+
   'Other': {
     priority: 'normal',
     primaryKeywords: [
@@ -647,7 +694,17 @@ export const KEYWORD_CATEGORIES = {
       // GeeksforGeeks
       'geeksforgeeks', 'geeks for geeks', 'gfg', 'geeksforgeeks.org',
       // Canva
-      'canva', 'canva.com', 'templates', 'design', 'canva pro'
+      'canva', 'canva.com', 'templates', 'design', 'canva pro',
+      // Social Media
+      'twitter', 'x.com', 'instagram', 'facebook', 'linkedin', 'pinterest', 'snapchat',
+      'notification', 'friend request', 'connection request', 'new follower', 'mention',
+      // E-commerce/Delivery/Services (Generic)
+      'order confirmed', 'shipped', 'out for delivery', 'delivered', 'invoice',
+      'subscription', 'payment successful', 'payment failed', 'refund',
+      'zomato', 'swiggy', 'uber', 'ola', 'blinkit', 'zepto', 'amazon order', 'flipkart',
+      // OTPs
+      'otp', 'one time password', 'verification code', 'verify your account',
+      'login code', 'security code', 'authentication code'
     ],
     secondaryKeywords: [
       // Generic system notifications

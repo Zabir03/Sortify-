@@ -46,7 +46,7 @@ export function clearAnalyticsCache(userId) {
   }
   keysToDelete.forEach(key => analyticsCache.delete(key))
   console.log(`🗑️ Cleared ${keysToDelete.length} analytics cache entries for user ${userId}`)
-  
+
   // Also clear advanced analytics cache
   clearAdvancedAnalyticsCache(userId)
 }
@@ -61,10 +61,10 @@ router.get('/stats', protect, asyncHandler(async (req, res) => {
     // Support bypassing cache for immediate updates during sync
     const bypassCache = req.query.force === 'true' || req.query.nocache === 'true'
     const useLightCache = req.query.light === 'true' // Use shorter TTL for frequent polling
-    
+
     const cacheKey = `stats_${req.user._id}`
     const cacheTTL = useLightCache ? LIGHT_CACHE_TTL : CACHE_TTL
-    
+
     // Check cache first (with optional bypass)
     const cached = getCachedData(cacheKey, cacheTTL, bypassCache)
     if (cached) {
@@ -75,14 +75,16 @@ router.get('/stats', protect, asyncHandler(async (req, res) => {
     const totalEmails = await getTotalEmailCount(req.user._id.toString())
 
     const stats = await Email.aggregate([
-      { $match: { 
-        userId: req.user._id,
-        isDeleted: false,  // Exclude deleted emails for consistency with email list
-        $or: [
-          { provider: 'gmail' },  // Match email list endpoint default provider filter
-          { provider: { $exists: false } }  // Include emails without provider field (legacy emails)
-        ]
-      } },
+      {
+        $match: {
+          userId: req.user._id,
+          isDeleted: false,  // Exclude deleted emails for consistency with email list
+          $or: [
+            { provider: 'gmail' },  // Match email list endpoint default provider filter
+            { provider: { $exists: false } }  // Include emails without provider field (legacy emails)
+          ]
+        }
+      },
       {
         $group: {
           _id: null,
@@ -186,7 +188,7 @@ router.get('/categories', protect, asyncHandler(async (req, res) => {
 
     // Use unified count service for consistent counts with email list
     const categoryCounts = await getAllCategoryCounts(req.user._id.toString())
-    
+
     // Get category names from categoryService
     const { getCategories } = await import('../services/categoryService.js')
     const categories = await getCategories(req.user._id)
@@ -197,10 +199,13 @@ router.get('/categories', protect, asyncHandler(async (req, res) => {
     )
 
     // Transform to analytics format with real-time counts
-    const categoryData = categories.map(cat => ({
-      label: cat.name,
-      count: countMap.get(cat.name) || 0  // Use unified count service result
-    }))
+    // Filter out 'All' category as it's a meta-category
+    const categoryData = categories
+      .filter(cat => cat.name.trim().toLowerCase() !== 'all')
+      .map(cat => ({
+        label: cat.name,
+        count: countMap.get(cat.name) || 0  // Use unified count service result
+      }))
 
     // Sort by count descending
     categoryData.sort((a, b) => b.count - a.count)
@@ -294,10 +299,12 @@ router.get('/accuracy', protect, asyncHandler(async (req, res) => {
           mediumConfidence: {
             $sum: {
               $cond: [
-                { $and: [
-                  { $gte: ['$classification.confidence', 0.4] },
-                  { $lt: ['$classification.confidence', 0.7] }
-                ]}, 1, 0
+                {
+                  $and: [
+                    { $gte: ['$classification.confidence', 0.4] },
+                    { $lt: ['$classification.confidence', 0.7] }
+                  ]
+                }, 1, 0
               ]
             }
           },
@@ -317,23 +324,23 @@ router.get('/accuracy', protect, asyncHandler(async (req, res) => {
       }
     ])
 
-    const result = accuracyData[0] || { 
-      total: 0, 
-      highConfidence: 0, 
-      mediumConfidence: 0, 
-      lowConfidence: 0, 
-      accuracyBreakdown: [] 
+    const result = accuracyData[0] || {
+      total: 0,
+      highConfidence: 0,
+      mediumConfidence: 0,
+      lowConfidence: 0,
+      accuracyBreakdown: []
     }
-    
+
     // Use REAL accuracy if available, otherwise estimate based on confidence
     let overallAccuracy = 0
     let correct = 0
     let classificationType = 'estimated'
-    
+
     if (hasRealData) {
       // REAL accuracy from user corrections
-      overallAccuracy = realAccuracy.total > 0 
-        ? (realAccuracy.correct / realAccuracy.total) * 100 
+      overallAccuracy = realAccuracy.total > 0
+        ? (realAccuracy.correct / realAccuracy.total) * 100
         : 0
       correct = realAccuracy.correct
       classificationType = 'real'
@@ -348,7 +355,7 @@ router.get('/accuracy', protect, asyncHandler(async (req, res) => {
 
     // Calculate accuracy by category
     let accuracyBreakdown = []
-    
+
     if (hasRealData && realAccuracy.categoryBreakdown) {
       // Use REAL category accuracy from user corrections
       const categoryAccuracy = {}
@@ -361,7 +368,7 @@ router.get('/accuracy', protect, asyncHandler(async (req, res) => {
           categoryAccuracy[item.category].correct++
         }
       })
-      
+
       accuracyBreakdown = Object.entries(categoryAccuracy).map(([category, data]) => ({
         category,
         correct: data.correct,
@@ -373,16 +380,16 @@ router.get('/accuracy', protect, asyncHandler(async (req, res) => {
       const categoryAccuracy = {}
       result.accuracyBreakdown.forEach(item => {
         if (!categoryAccuracy[item.category]) {
-          categoryAccuracy[item.category] = { 
-            correct: 0, 
-            total: 0, 
+          categoryAccuracy[item.category] = {
+            correct: 0,
+            total: 0,
             highConfidence: 0,
             mediumConfidence: 0,
             lowConfidence: 0
           }
         }
         categoryAccuracy[item.category].total++
-        
+
         // Estimate correctness based on confidence
         if (item.confidence >= 0.7) {
           categoryAccuracy[item.category].highConfidence++
@@ -465,10 +472,10 @@ router.get('/misclassifications', protect, asyncHandler(async (req, res) => {
         }
       ]
     })
-    .select('subject from date category classification labels')
-    .sort({ date: -1 })
-    .limit(limit)
-    .lean() // Use lean() for faster queries (returns plain JS objects)
+      .select('subject from date category classification labels')
+      .sort({ date: -1 })
+      .limit(limit)
+      .lean() // Use lean() for faster queries (returns plain JS objects)
 
     res.json({
       success: true,
@@ -489,14 +496,16 @@ router.get('/misclassifications', protect, asyncHandler(async (req, res) => {
 // @access  Private
 router.get('/performance', protect, asyncHandler(async (req, res) => {
   const performanceData = await Email.aggregate([
-    { $match: { 
-      userId: req.user._id,
-      isDeleted: false,  // Exclude deleted emails for consistency
-      $or: [
-        { provider: 'gmail' },  // Match email list endpoint default provider filter
-        { provider: { $exists: false } }  // Include emails without provider field (legacy emails)
-      ]
-    } },
+    {
+      $match: {
+        userId: req.user._id,
+        isDeleted: false,  // Exclude deleted emails for consistency
+        $or: [
+          { provider: 'gmail' },  // Match email list endpoint default provider filter
+          { provider: { $exists: false } }  // Include emails without provider field (legacy emails)
+        ]
+      }
+    },
     {
       $group: {
         _id: {

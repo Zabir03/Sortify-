@@ -22,7 +22,7 @@ const Dashboard = () => {
   const { user, token, connectGmailAccount, updateTokenFromOAuth } = useAuth()
   const { isConnected, connectionStatus, subscribeToEvents, lastMessage } = useWebSocketContext()
   const [searchParams, setSearchParams] = useSearchParams()
-  
+
   // Initialize activeView from URL params, default to 'emails'
   const [activeView, setActiveView] = useState(() => {
     const viewParam = searchParams.get('view')
@@ -54,13 +54,13 @@ const Dashboard = () => {
     total: 0,
     synced: 0
   })
-  
+
   // Track continuous sync state - persists until logout
   // Use localStorage key with user ID to persist across refreshes
   const getContinuousSyncKey = useCallback(() => {
     return `continuousSync_${user?._id || 'default'}`
   }, [user?._id])
-  
+
   const [continuousSyncActive, setContinuousSyncActive] = useState(false)
   const continuousSyncIntervalRef = useRef(null)
   const hasRestoredSyncRef = useRef(false) // Track if we've already tried to restore
@@ -70,7 +70,7 @@ const Dashboard = () => {
     totalEmails: 0,
     processedToday: 0
   })
-  
+
   // Force refresh state
   const [forceRefresh, setForceRefresh] = useState(0)
 
@@ -102,15 +102,15 @@ const Dashboard = () => {
   const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false)
   const [categoryTabsRefresh, setCategoryTabsRefresh] = useState(0)
   const [currentCategoryCount, setCurrentCategoryCount] = useState(0)
-  
+
   // Reclassification progress state
   const [reclassificationJobs, setReclassificationJobs] = useState([])
   const [showReclassificationProgress, setShowReclassificationProgress] = useState(false)
-  
+
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [emailToDelete, setEmailToDelete] = useState(null)
-  
+
   // Rate limiting for API calls
   const [lastApiCall, setLastApiCall] = useState(0)
   const [statsLoading, setStatsLoading] = useState(false)
@@ -123,29 +123,29 @@ const Dashboard = () => {
       console.log('⏳ Throttling API call...')
       return
     }
-    
+
     try {
       // FIXED: Never block the UI with loading state
       // Set a non-blocking loading indicator instead
       setEmailsLoading(true)
       setLastApiCall(now)
-      
+
       // Use the category override if provided, otherwise use current category
       const categoryToUse = categoryOverride !== null ? categoryOverride : currentCategory
-      
+
       console.log('📧 Fetching emails...', { currentPage, currentCategory, categoryToUse, searchQuery })
-      
+
       // OPTIMIZED: Use consistent smaller page sizes for faster loading
       // Search is handled by backend efficiently, no need for large limits
       const limit = 50 // Consistent limit for fast loading
-      
-      console.log('📧 API call parameters:', { 
+
+      console.log('📧 API call parameters:', {
         page: currentPage,
-        category: categoryToUse, 
+        category: categoryToUse,
         q: searchQuery,
         limit
       })
-      
+
       const response = await emailService.getEmails({
         page: currentPage,
         category: categoryToUse,
@@ -153,14 +153,14 @@ const Dashboard = () => {
         limit,
         threaded: true // FIXED: Enable threading for all fetches (WebSocket, pagination, filters)
       })
-      
+
       console.log('📧 Email API response:', response)
       console.log('📧 Response items:', response.items)
       console.log('📧 Response total:', response.total)
-      
+
       if (response.success) {
         const emailItems = response.items || []
-        
+
         // For "All" category, show all emails returned by server
         // For specific categories, server already filtered but ensure consistency
         const filteredEmailItems = emailItems.filter(email => {
@@ -173,18 +173,18 @@ const Dashboard = () => {
             return email.category === categoryToUse
           }
         })
-        
+
         setEmails(filteredEmailItems)
-        
+
         // Set the category-specific count - use server total for all categories to show accurate counts
         const countToShow = response.total || 0
         setCurrentCategoryCount(countToShow)
-        
+
         // Store all emails for quick restore when clearing search
         if (!searchQuery.trim()) {
           setAllEmails(filteredEmailItems)
         }
-        
+
         // FIXED: Calculate total pages based on actual page size (50, not 25)
         setTotalPages(Math.ceil(response.total / 50))
         console.log('✅ Emails loaded:', filteredEmailItems.length, 'out of', response.total || 0)
@@ -210,7 +210,7 @@ const Dashboard = () => {
   // Fetch sync status function
   const fetchSyncStatus = useCallback(async () => {
     if (!token || !gmailConnected) return
-    
+
     try {
       const response = await api.get('/realtime/status')
       if (response.data.success) {
@@ -233,24 +233,24 @@ const Dashboard = () => {
       console.log('⏳ Throttling stats API call...')
       return
     }
-    
+
     // Prevent multiple simultaneous calls
     if (statsLoading) {
       console.log('⏳ Stats already loading, skipping...')
       return
     }
-    
+
     // Only fetch stats if we have a token and Gmail is connected
     if (!token) {
       console.log('⏸️ Skipping stats fetch - no token')
       return
     }
-    
+
     if (!gmailConnected) {
       console.log('⏸️ Skipping stats fetch - Gmail not connected')
       return
     }
-    
+
     try {
       setStatsLoading(true)
       setLastApiCall(now)
@@ -261,7 +261,7 @@ const Dashboard = () => {
       const response = await emailService.getStats({ force, light: useLightMode })
       console.log('📊 Raw response from emailService:', response)
       console.log('📊 Stats API response:', response)
-      
+
       if (response.success && response.stats) {
         console.log('✅ Stats loaded successfully:', response.stats)
         setStats(response.stats)
@@ -281,7 +281,7 @@ const Dashboard = () => {
           })
         }
       }
-      
+
       // Also fetch sync status
       await fetchSyncStatus()
     } catch (error) {
@@ -308,12 +308,12 @@ const Dashboard = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const gmailAuth = urlParams.get('gmail_auth')
-    
+
     if (gmailAuth === 'success') {
       console.log('🎉 Gmail OAuth successful, refreshing connection status...')
       // Remove the URL parameter
       window.history.replaceState({}, document.title, window.location.pathname)
-      
+
       // Refresh connection status and data
       checkConnectionStatus()
       setTimeout(() => {
@@ -337,19 +337,19 @@ const Dashboard = () => {
   // Continuous polling - always active when Gmail is connected, faster during sync
   useEffect(() => {
     if (!token || !gmailConnected) return
-    
+
     // Determine polling interval based on sync status
     const isSyncActive = continuousSyncActive || syncStatus.isActive || syncLoading || fullSyncLoading
     const pollingInterval = isSyncActive ? 1500 : 5000 // 1.5s during sync, 5s when idle
-    
+
     console.log(`🔄 Setting up continuous polling (${pollingInterval}ms interval) - sync active: ${isSyncActive}`)
-    
+
     // Poll immediately when sync status becomes active
     if (isSyncActive) {
       fetchStats(true)
       fetchSyncStatus()
     }
-    
+
     // Fast refresh for critical stats and sync status - NEVER stops while connected
     const fastInterval = setInterval(() => {
       if (gmailConnected && token) {
@@ -359,7 +359,7 @@ const Dashboard = () => {
         fetchSyncStatus()
       }
     }, pollingInterval)
-    
+
     // Slower refresh for connection status
     const slowInterval = setInterval(() => {
       if (gmailConnected && token) {
@@ -367,7 +367,7 @@ const Dashboard = () => {
         console.log('🔄 Connection status check...')
       }
     }, 30000) // Every 30 seconds for connection status
-    
+
     return () => {
       clearInterval(fastInterval)
       clearInterval(slowInterval)
@@ -378,7 +378,7 @@ const Dashboard = () => {
   useEffect(() => {
     console.log('🚀 Component mounted, loading initial data...')
     console.log('🔍 Current state:', { token: !!token, gmailConnected, currentPage, currentCategory, searchQuery })
-    
+
     // Only fetch stats if Gmail is connected to avoid unnecessary calls
     if (token && gmailConnected) {
       console.log('📊 Force fetching stats on component mount...')
@@ -386,7 +386,7 @@ const Dashboard = () => {
         fetchStats(true)
       }, 2000) // Add delay to prevent spam
     }
-    
+
     // Only load data if Gmail is connected
     if (!gmailConnected) {
       console.log('⏳ Gmail not connected, skipping data load')
@@ -401,18 +401,18 @@ const Dashboard = () => {
       setEmails([])
       return
     }
-    
+
     // Load data when Gmail is connected
     const loadData = async () => {
       try {
         // FIXED: Non-blocking loading state
         setEmailsLoading(true)
         console.log('📧 Fetching emails...', { currentPage, currentCategory, searchQuery })
-        
+
         // Force fetch stats when Gmail connects
         console.log('📊 Force fetching stats on Gmail connection...')
         await fetchStats(true)
-        
+
         // Single attempt to get emails
         try {
           const response = await emailService.getEmails({
@@ -422,16 +422,16 @@ const Dashboard = () => {
             limit: 50, // OPTIMIZED: Consistent limit for fast loading
             threaded: true // FIXED: Enable threading to group replies with original emails
           })
-          
+
           console.log('📧 Email API response:', response)
-          
+
           if (response && response.success) {
             const emailItems = response.items || []
             setEmails(emailItems)
-            
+
             // Store all emails for quick restore when clearing search
             setAllEmails(emailItems)
-            
+
             // FIXED: Calculate total pages based on actual page size (50, not 25)
             setTotalPages(Math.ceil((response.total || 0) / 50))
             console.log('✅ Emails loaded:', emailItems.length, 'out of', response.total || 0)
@@ -452,7 +452,7 @@ const Dashboard = () => {
       } finally {
         setEmailsLoading(false)
       }
-      
+
       // Load stats with fallback
       try {
         const statsResponse = await emailService.getStats()
@@ -483,17 +483,17 @@ const Dashboard = () => {
         })
       }
     }
-    
+
     // Load data immediately
     loadData()
-    
+
     // Remove periodic check to prevent infinite loops
   }, [gmailConnected]) // Run when Gmail connection status changes
 
   // Load data when pagination changes (search is handled separately)
   useEffect(() => {
     if (!token || !gmailConnected) return
-    
+
     // Only handle pagination changes here, not search
     // Search is handled by the dedicated search effect
     if (searchQuery.trim().length === 0) {
@@ -521,7 +521,7 @@ const Dashboard = () => {
       setSearchParams({ view: activeView }, { replace: true })
     }
   }, [activeView])
-  
+
   // Check URL parameters for tab navigation (legacy support)
   useEffect(() => {
     const tab = searchParams.get('tab')
@@ -625,7 +625,7 @@ const Dashboard = () => {
       const timeoutId = setTimeout(() => {
         subscribeToEvents(['email_synced', 'category_updated', 'sync_status', 'stats_updated', 'realtime_update', 'email_archived', 'email_unarchived', 'reclassification_started', 'reclassification_progress', 'reclassification_complete', 'reclassification_failed'])
       }, 100)
-      
+
       return () => clearTimeout(timeoutId)
     } else {
       console.log('🔌 WebSocket not connected, will subscribe when connected')
@@ -635,22 +635,22 @@ const Dashboard = () => {
   // Handle all WebSocket real-time updates
   useEffect(() => {
     if (!lastMessage) return
-    
+
     console.log('📡 WebSocket message received:', lastMessage)
-    
+
     switch (lastMessage.type) {
       case 'category_updated':
         console.log('🏷️ Dashboard received category update:', lastMessage.data)
         handleCategoryUpdate(lastMessage.data)
         break
-        
+
       case 'email_synced':
         console.log('📧 Dashboard received email sync update:', lastMessage.data)
         handleEmailSync(lastMessage.data)
         // Immediately update stats when individual email is synced
         fetchStats(true)
         break
-        
+
       case 'sync_status':
         console.log('🔄 Dashboard received sync status update:', lastMessage.data)
         handleSyncStatus(lastMessage.data)
@@ -670,23 +670,23 @@ const Dashboard = () => {
           fetchStats(true)
         }
         break
-        
+
       case 'stats_updated':
         console.log('📊 Dashboard received stats update:', lastMessage.data)
         // Force refresh stats when we get a stats update
         fetchStats(true)
         break
-        
+
       case 'reclassification_started':
         console.log('🔄 Dashboard received reclassification start:', lastMessage.data)
         toast.success(`Started reclassifying emails for category: ${lastMessage.data?.categoryName || 'All Emails'}`, {
           duration: 5000
         })
         break
-        
+
       case 'reclassification_progress':
         console.log('🔄 Dashboard received reclassification progress:', lastMessage.data)
-        
+
         // Update reclassification jobs state
         setReclassificationJobs(prevJobs => {
           const existingIndex = prevJobs.findIndex(job => job.jobId === lastMessage.data.jobId)
@@ -701,16 +701,16 @@ const Dashboard = () => {
             return [...prevJobs, lastMessage.data]
           }
         })
-        
+
         // Show progress toast for major milestones
         if (lastMessage.data?.progress % 25 === 0) {
           toast.loading(
-            `Reclassifying: ${lastMessage.data?.progress}% (${lastMessage.data?.processedEmails}/${lastMessage.data?.totalEmails} emails)`, 
+            `Reclassifying: ${lastMessage.data?.progress}% (${lastMessage.data?.processedEmails}/${lastMessage.data?.totalEmails} emails)`,
             { id: 'reclassification_progress', duration: 10000 }
           )
         }
         break
-        
+
       case 'reclassification_complete':
         console.log('✅ Dashboard received reclassification complete:', lastMessage.data)
         toast.dismiss('reclassification_progress')
@@ -721,7 +721,7 @@ const Dashboard = () => {
         fetchEmails(true)
         fetchStats(true)
         break
-        
+
       case 'reclassification_failed':
         console.log('❌ Dashboard received reclassification failed:', lastMessage.data)
         toast.dismiss('reclassification_progress')
@@ -729,11 +729,11 @@ const Dashboard = () => {
           duration: 8000
         })
         break
-        
+
       case 'email_archived':
         console.log('📦 Dashboard received email archived:', lastMessage.data)
         // Mark email as archived but keep it visible in the list
-        setEmails(prevEmails => prevEmails.map(email => 
+        setEmails(prevEmails => prevEmails.map(email =>
           email._id === lastMessage.data?.emailId
             ? { ...email, isArchived: true, archivedAt: new Date() }
             : email
@@ -749,11 +749,11 @@ const Dashboard = () => {
           duration: 3000
         })
         break
-        
+
       case 'email_unarchived':
         console.log('📥 Dashboard received email unarchived:', lastMessage.data)
         // Mark email as unarchived in the list
-        setEmails(prevEmails => prevEmails.map(email => 
+        setEmails(prevEmails => prevEmails.map(email =>
           email._id === lastMessage.data?.emailId
             ? { ...email, isArchived: false, archivedAt: null }
             : email
@@ -769,7 +769,7 @@ const Dashboard = () => {
           duration: 3000
         })
         break
-        
+
       case 'realtime_update':
         console.log('⚡ Dashboard received real-time update:', lastMessage.data)
         // Handle general real-time updates - refresh all data immediately
@@ -779,7 +779,7 @@ const Dashboard = () => {
           fetchEmails(true)
         }
         break
-        
+
       case 'sync_progress':
         console.log('📊 Dashboard received sync progress update:', lastMessage.data)
         // During sync, update stats more frequently
@@ -794,7 +794,7 @@ const Dashboard = () => {
           }))
         }
         break
-        
+
       default:
         console.log('📡 Unknown message type:', lastMessage.type)
     }
@@ -806,20 +806,20 @@ const Dashboard = () => {
       console.log('Message received:', event.data)
       console.log('Message origin:', event.origin)
       console.log('Expected origins:', ['http://localhost:5000', 'http://localhost:3000', 'http://localhost:3001'])
-      
+
       // Accept messages from localhost origins (development)
       const allowedOrigins = ['http://localhost:5000', 'http://localhost:3000', 'http://localhost:3001']
-      
+
       if (event.data && event.data.type === 'GMAIL_LOGIN_SUCCESS') {
         console.log('Gmail login success message received!')
-        
+
         // Stop the connecting state
         setConnectingGmail(false)
-        
+
         // Store token and update auth context
         localStorage.setItem('token', event.data.token)
         api.defaults.headers.common['Authorization'] = `Bearer ${event.data.token}`
-        
+
         // Show beautiful 3D glass design success toast
         toast.success('🎉 Gmail Connected Successfully!', {
           duration: 4000,
@@ -840,7 +840,7 @@ const Dashboard = () => {
           },
           icon: '✨'
         })
-        
+
         // Reload the page to refresh auth context
         setTimeout(() => {
           console.log('Reloading page with new token')
@@ -872,7 +872,7 @@ const Dashboard = () => {
 
     console.log('Setting up message listener for Gmail OAuth')
     window.addEventListener('message', handleMessage)
-    
+
     return () => {
       console.log('Cleaning up message listener')
       window.removeEventListener('message', handleMessage)
@@ -882,27 +882,27 @@ const Dashboard = () => {
   // Note: OAuth callback processing has been moved to OAuthCallback.jsx page
 
   // Check current connection status function
-    const checkConnectionStatus = async () => {
-      if (!token) {
-        setLoadingConnections(false)
-        return
-      }
+  const checkConnectionStatus = async () => {
+    if (!token) {
+      setLoadingConnections(false)
+      return
+    }
 
-      try {
-        const response = await api.get('/auth/me')
-        if (response.data.success) {
-          setGmailConnected(response.data.user.gmailConnected || false)
+    try {
+      const response = await api.get('/auth/me')
+      if (response.data.success) {
+        setGmailConnected(response.data.user.gmailConnected || false)
         // Update user object with Gmail name if available
         if (response.data.user.gmailName && user) {
           user.gmailName = response.data.user.gmailName
         }
-        }
-      } catch (error) {
-        console.error('Failed to check connection status:', error)
-      } finally {
-        setLoadingConnections(false)
       }
+    } catch (error) {
+      console.error('Failed to check connection status:', error)
+    } finally {
+      setLoadingConnections(false)
     }
+  }
 
   // Load stats function (removed duplicate - using fetchStats instead)
 
@@ -927,7 +927,7 @@ const Dashboard = () => {
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
@@ -938,22 +938,22 @@ const Dashboard = () => {
   // Load email details
   const loadEmailDetails = async (emailId) => {
     if (!emailId) return
-    
+
     // First, check if this is a thread container from the current emails list
     const emailItem = emails.find(e => e._id === emailId)
-    
+
     if (emailItem && emailItem.isThread) {
       // It's a thread container, just pass it directly to EmailReader
       // EmailReader will handle fetching all thread messages
       setSelectedEmail(emailItem)
-      
+
       // Mark all messages in the thread as read
       if (emailItem.messageIds && emailItem.messageIds.length > 0 && !emailItem.isRead) {
         try {
           await emailService.markAsRead(emailItem.messageIds)
           // Update UI to mark thread as read
-          setEmails(prevEmails => 
-            prevEmails.map(e => 
+          setEmails(prevEmails =>
+            prevEmails.map(e =>
               e._id === emailId ? { ...e, isRead: true } : e
             )
           )
@@ -964,21 +964,21 @@ const Dashboard = () => {
       }
       return
     }
-    
+
     // For regular emails, fetch full details
     setEmailDetailLoading(true)
     try {
       const response = await emailService.detail(emailId)
       if (response.success) {
         setSelectedEmail(response.email)
-        
+
         // Mark as read if it's unread
         if (!response.email.isRead) {
           try {
             await emailService.markAsRead(emailId)
             // Update UI to mark email as read
-            setEmails(prevEmails => 
-              prevEmails.map(e => 
+            setEmails(prevEmails =>
+              prevEmails.map(e =>
                 e._id === emailId ? { ...e, isRead: true } : e
               )
             )
@@ -1017,16 +1017,16 @@ const Dashboard = () => {
       console.log('Gmail connection already in progress, skipping...')
       return
     }
-    
+
     setConnectingGmail(true)
     try {
       const response = await api.get('/auth/gmail/connect')
       if (response.data.success) {
         console.log('Redirecting to Gmail OAuth:', response.data.authUrl)
-        
+
         // Redirect to Gmail OAuth in the same tab
         window.location.href = response.data.authUrl
-        
+
         // The OAuth callback will redirect back to dashboard with token
         // and the URL parameter handler will process it
       } else {
@@ -1075,12 +1075,12 @@ const Dashboard = () => {
   // Continuous sync function that runs repeatedly
   const performSync = useCallback(async (showNotifications = true) => {
     if (!token || !gmailConnected) return
-    
+
     try {
       // First check if there are any new emails to sync
       console.log('🔍 Checking for new emails from Gmail...')
       const checkResult = await emailService.checkNewEmails()
-      
+
       if (!checkResult.hasNewEmails) {
         console.log('✅ No new emails to sync')
         // Don't set sync as active if there are no new emails
@@ -1090,16 +1090,16 @@ const Dashboard = () => {
         }
         return { success: true, hasNewEmails: false, message: 'No new emails to sync' }
       }
-      
+
       console.log(`📧 Found ${checkResult.estimatedCount || 0} new email(s) to sync`)
-      
+
       // Only set sync as active if there are actually new emails
       setSyncStatus(prev => ({ ...prev, isActive: true, status: 'active', progress: 0 }))
-      
+
       console.log('🔄 Performing Gmail sync...')
       const data = await emailService.syncGmail()
       console.log('✅ Gmail sync response:', data)
-      
+
       if (data.success) {
         // Refresh data immediately - multiple times to catch updates
         checkConnectionStatus()
@@ -1110,10 +1110,10 @@ const Dashboard = () => {
           fetchEmails(true)
         }, 500)
         fetchSyncStatus() // Update sync status
-        
+
         // Always refresh emails to show updated list
         fetchEmails(true) // Force refresh to show synced emails in the list
-        
+
         // Show notification only if requested and there are new emails
         if (showNotifications) {
           if (data.newEmailCount > 0) {
@@ -1122,7 +1122,7 @@ const Dashboard = () => {
             })
           }
         }
-        
+
         // Reset sync status after completion (but keep continuous sync active)
         setTimeout(() => {
           setSyncStatus(prev => ({
@@ -1132,7 +1132,7 @@ const Dashboard = () => {
             progress: continuousSyncActive ? prev.progress : 0
           }))
         }, 2000)
-        
+
         return { success: true, hasNewEmails: data.newEmailCount > 0 }
       } else {
         console.warn('⚠️ Sync returned unsuccessful:', data.message)
@@ -1172,14 +1172,14 @@ const Dashboard = () => {
       console.log('🔄 Continuous sync already active')
       return
     }
-    
+
     if (!token || !gmailConnected) {
       if (!isRestore) {
         toast.error('Please connect your Gmail account first')
       }
       return
     }
-    
+
     console.log(isRestore ? '🔄 Restoring continuous sync after page refresh...' : '🚀 Starting continuous sync...')
     setContinuousSyncActive(true)
     // Persist to localStorage
@@ -1187,7 +1187,7 @@ const Dashboard = () => {
       localStorage.setItem(getContinuousSyncKey(), 'true')
     }
     setSyncStatus(prev => ({ ...prev, isActive: true, status: 'active' }))
-    
+
     // Perform initial sync immediately (skip notification on restore)
     performSync(!isRestore).then((result) => {
       // Start continuous sync loop - check for new emails every 30 seconds
@@ -1196,17 +1196,17 @@ const Dashboard = () => {
           stopContinuousSync(false) // Don't clear storage, just stop interval
           return
         }
-        
+
         console.log('🔄 Continuous sync cycle - checking for new emails...')
         const syncResult = await performSync(false) // Don't show notifications for background syncs
-        
+
         // Only refresh stats if there were actually emails synced
         if (syncResult && syncResult.hasNewEmails) {
           fetchStats(true) // Refresh stats after sync
         }
       }, 30000) // Check every 30 seconds
     })
-    
+
     if (!isRestore) {
       toast.success('🔄 Continuous sync started! It will keep running until you log out.', {
         duration: 4000
@@ -1218,7 +1218,7 @@ const Dashboard = () => {
   const syncGmailEmails = async () => {
     startContinuousSync()
   }
-  
+
   // Cleanup continuous sync on logout or unmount
   useEffect(() => {
     return () => {
@@ -1227,7 +1227,7 @@ const Dashboard = () => {
       }
     }
   }, [])
-  
+
   // Restore continuous sync from localStorage on mount/refresh
   useEffect(() => {
     if (user?._id && token && gmailConnected && !hasRestoredSyncRef.current) {
@@ -1246,7 +1246,7 @@ const Dashboard = () => {
       }
     }
   }, [user?._id, token, gmailConnected, getContinuousSyncKey, startContinuousSync, continuousSyncActive])
-  
+
   // Stop continuous sync when user logs out or Gmail disconnects
   useEffect(() => {
     if (!token) {
@@ -1282,29 +1282,29 @@ const Dashboard = () => {
     if (!continuousSyncActive) {
       startContinuousSync()
     }
-    
+
     // Immediately set sync status as active for faster polling
     setSyncStatus(prev => ({ ...prev, isActive: true, status: 'active' }))
     // Immediately refresh stats when sync starts
     fetchStats(true)
-    
+
     try {
       console.log('🚀 Starting FULL Gmail sync...')
       const response = await api.post('/emails/gmail/full-sync')
-      
+
       if (response.data.success) {
         // Get time estimate from response
         const timeEstimate = response.data.estimatedTimeMinutes || { min: 15, max: 30 }
-        
+
         // Format time estimate
-        const timeText = timeEstimate.min === timeEstimate.max 
+        const timeText = timeEstimate.min === timeEstimate.max
           ? `about ${timeEstimate.min} minutes`
           : `${timeEstimate.min}-${timeEstimate.max} minutes`
-        
+
         toast.success(`📥 Full sync started! All emails will be synced in ${timeText}. Continuous sync is active.`, {
           duration: 6000
         })
-        
+
         // Poll for updates more frequently during full sync (every 2 seconds)
         // This is in addition to the continuous polling
         const pollInterval = setInterval(() => {
@@ -1313,7 +1313,7 @@ const Dashboard = () => {
             fetchEmails(true)
           }
         }, 2000) // More frequent updates during full sync
-        
+
         // Clear after max time + buffer, but keep continuous sync running
         const maxTimeMs = (timeEstimate.max + 5) * 60 * 1000
         setTimeout(() => {
@@ -1344,29 +1344,29 @@ const Dashboard = () => {
     setReclassifyLoading(true)
     try {
       console.log('🔄 Starting reclassification...')
-      // Use the rule-based reclassification endpoint (more reliable than script-based)
-      const response = await api.post('/emails/reclassify-all-rule-based', {
+      // Use the script-based reclassification endpoint for deep analysis
+      const response = await api.post('/emails/reclassify-all-script', {
         preserveManual: true,
         batchSize: 100
       })
-      
+
       if (response.data.success) {
         const estimate = response.data.estimatedTime || {}
         const emailCount = estimate.emailCount || 'all'
         const estimatedMinutes = estimate.estimatedMinutes || '10-20'
-        
+
         toast.success(
           `🤖 Reclassification started! Processing ${emailCount} emails (est. ${estimatedMinutes} min). This will reclassify all emails based on latest keywords.`,
           { duration: 6000 }
         )
-        
+
         // Poll for updates every 10 seconds
         const pollInterval = setInterval(async () => {
           await fetchStats(true)
           await fetchEmails(true)
           setCategoryTabsRefresh(prev => prev + 1) // Refresh category tabs
         }, 10000)
-        
+
         // Clear after estimated time + buffer (convert minutes to milliseconds)
         const clearTime = (estimate.estimatedSeconds || 1200) * 1000 + 300000 // Add 5 min buffer
         setTimeout(() => clearInterval(pollInterval), clearTime)
@@ -1399,41 +1399,41 @@ const Dashboard = () => {
   const handleEmailArchive = async (emailId) => {
     // Check if this is a thread container - check both emails array and selectedEmail
     let emailItem = emails.find(e => e._id === emailId)
-    
+
     // FIXED: If not found in emails array, check selectedEmail (for threaded messages)
     if (!emailItem && selectedEmail && selectedEmail._id === emailId) {
       emailItem = selectedEmail
     }
-    
+
     const isThreadContainer = emailItem && emailItem.isThread && emailItem.messageIds
-    
+
     // Optimistic UI update: immediately mark email as archived
     const previousEmails = [...emails]
     const previousSelectedEmail = selectedEmail ? { ...selectedEmail } : null
-    
+
     // Immediately update UI - mark as archived but keep visible
-    setEmails(prevEmails => prevEmails.map(email => 
-      email._id === emailId 
+    setEmails(prevEmails => prevEmails.map(email =>
+      email._id === emailId
         ? { ...email, isArchived: true, archivedAt: new Date() }
         : email
     ))
-    
+
     // Update selected email if this email is open
     if (selectedEmail && selectedEmail._id === emailId) {
       setSelectedEmail({ ...selectedEmail, isArchived: true, archivedAt: new Date() })
     }
-    
+
     try {
       if (isThreadContainer) {
         // Archive all emails in the thread using bulk operation
         const response = await emailService.bulkArchive(emailItem.messageIds)
-        
+
         if (response.success) {
           toast.success(
             `📦 Thread archived (${emailItem.messageCount} messages)`,
             { duration: 3000 }
           )
-          
+
           // Refresh stats to reflect the change
           fetchStats(true)
         } else {
@@ -1447,15 +1447,15 @@ const Dashboard = () => {
       } else {
         // Single email archive
         const response = await emailService.archive(emailId)
-        
+
         if (response.success) {
           toast.success(
-            response.gmailSynced 
-              ? '📦 Email archived and synced with Gmail' 
+            response.gmailSynced
+              ? '📦 Email archived and synced with Gmail'
               : '📦 Email archived locally',
             { duration: 3000 }
           )
-          
+
           // Refresh stats to reflect the change
           fetchStats(true)
         } else {
@@ -1481,60 +1481,60 @@ const Dashboard = () => {
   const handleEmailUnarchive = async (emailId) => {
     // Check if this is a thread container - check both emails array and selectedEmail
     let emailItem = emails.find(e => e._id === emailId)
-    
+
     // FIXED: If not found in emails array, check selectedEmail (for threaded messages)
     if (!emailItem && selectedEmail && selectedEmail._id === emailId) {
       emailItem = selectedEmail
     }
-    
+
     const isThreadContainer = emailItem && emailItem.isThread && emailItem.messageIds
-    
+
     // Optimistic UI update: immediately mark email as unarchived
     const previousEmails = [...emails]
     const previousSelectedEmail = selectedEmail ? { ...selectedEmail } : null
-    
+
     // Immediately update UI - mark as unarchived
-    setEmails(prevEmails => prevEmails.map(email => 
-      email._id === emailId 
+    setEmails(prevEmails => prevEmails.map(email =>
+      email._id === emailId
         ? { ...email, isArchived: false, archivedAt: null }
         : email
     ))
-    
+
     // Update selected email if this email is open
     if (selectedEmail && selectedEmail._id === emailId) {
       setSelectedEmail({ ...selectedEmail, isArchived: false, archivedAt: null })
     }
-    
+
     try {
       if (isThreadContainer) {
         // Unarchive all emails in thread - we need to call unarchive for each
         // Since there's no bulk unarchive, we'll do them sequentially
         const loadingToast = toast.loading(`Unarchiving ${emailItem.messageCount} messages...`)
-        
+
         for (const msgId of emailItem.messageIds) {
           await emailService.unarchive(msgId)
         }
-        
+
         toast.dismiss(loadingToast)
         toast.success(
           `📥 Thread unarchived (${emailItem.messageCount} messages)`,
           { duration: 3000 }
         )
-        
+
         // Refresh stats to reflect the change
         fetchStats(true)
       } else {
         // Single email unarchive
         const response = await emailService.unarchive(emailId)
-        
+
         if (response.success) {
           toast.success(
-            response.gmailSynced 
-              ? '📥 Email unarchived and synced with Gmail' 
+            response.gmailSynced
+              ? '📥 Email unarchived and synced with Gmail'
               : '📥 Email unarchived locally',
             { duration: 3000 }
           )
-          
+
           // Refresh stats to reflect the change
           fetchStats(true)
         } else {
@@ -1560,12 +1560,12 @@ const Dashboard = () => {
   const handleEmailDelete = async (emailId) => {
     // Check if this is a thread container - check both emails array and selectedEmail
     let emailItem = emails.find(e => e._id === emailId)
-    
+
     // FIXED: If not found in emails array, check selectedEmail (for threaded messages)
     if (!emailItem && selectedEmail && selectedEmail._id === emailId) {
       emailItem = selectedEmail
     }
-    
+
     // FIXED: If still not found, it might be an individual message in a thread
     // Create a minimal email object for the delete modal
     if (!emailItem) {
@@ -1576,18 +1576,18 @@ const Dashboard = () => {
         messageCount: 1
       }
     }
-    
+
     // Show the delete confirmation modal
     setEmailToDelete(emailItem)
     setShowDeleteModal(true)
   }
-  
+
   const confirmEmailDelete = async (deleteFromGmail) => {
     if (!emailToDelete) return
-    
+
     try {
       const isThreadContainer = emailToDelete.isThread && emailToDelete.messageIds
-      
+
       if (isThreadContainer) {
         // Delete all emails in the thread using bulk operation
         await emailService.bulkDelete(emailToDelete.messageIds, deleteFromGmail)
@@ -1597,15 +1597,15 @@ const Dashboard = () => {
         await emailService.remove(emailToDelete._id, deleteFromGmail)
         toast.success(`Email deleted${deleteFromGmail ? ' from Gmail too' : ''}`)
       }
-      
+
       // Close modal and cleanup
       setShowDeleteModal(false)
       const deletedId = emailToDelete._id
       setEmailToDelete(null)
-      
+
       // Refresh list
       fetchEmails()
-      
+
       // If we deleted the selected email or thread container, close it
       if (selectedEmailId === deletedId) {
         setSelectedEmailId(null)
@@ -1632,7 +1632,7 @@ const Dashboard = () => {
           }
         }
       }
-      
+
       // Trigger refresh callback for EmailReader to update thread messages
       if (selectedEmail && selectedEmail.isThread) {
         // The EmailReader will refresh when the email prop changes via loadEmailDetails
@@ -1655,14 +1655,14 @@ const Dashboard = () => {
     try {
       // Check if this is a thread container - check both emails array and selectedEmail
       let emailItem = emails.find(e => e._id === emailId)
-      
+
       // FIXED: If not found in emails array, check selectedEmail (for threaded messages)
       if (!emailItem && selectedEmail && selectedEmail._id === emailId) {
         emailItem = selectedEmail
       }
-      
+
       const isThreadContainer = emailItem && emailItem.isThread && emailItem.messageIds
-      
+
       if (isThreadContainer) {
         // Export all emails in the thread using bulk operation
         await emailService.bulkExport(emailItem.messageIds)
@@ -1683,27 +1683,27 @@ const Dashboard = () => {
       console.log('No sent email data, skipping email list update')
       return
     }
-    
+
     console.log('📧 Reply sent successfully, refreshing email list with threading:', {
       threadContainerId,
       sentEmail: sentEmailData._id,
       snippet: sentEmailData.snippet
     })
-    
+
     // FIXED: Refresh the email list from server to get proper threaded view
     // This ensures the threading is correctly displayed after sending a reply
     try {
       await fetchEmails()
       console.log('✅ Email list refreshed with proper threading after reply')
-      
+
       // Find and select the thread in the refreshed list
       // The thread might have a different ID now (threadId_date format)
       // So we need to wait for the list to update and then find it
       setTimeout(() => {
         if (selectedEmail) {
           // Keep the email reader open to show the updated thread
-          const updatedEmail = emails.find(e => 
-            e._id === threadContainerId || 
+          const updatedEmail = emails.find(e =>
+            e._id === threadContainerId ||
             (e.threadId === selectedEmail.threadId && e.isThread)
           )
           if (updatedEmail) {
@@ -1712,16 +1712,16 @@ const Dashboard = () => {
           }
         }
       }, 500)
-      
+
     } catch (error) {
       console.error('❌ Failed to refresh email list after reply:', error)
-      
+
       // Fallback: Optimistically update the local state
       setEmails(prevEmails => {
         const updatedEmails = prevEmails.map(email => {
           if (email._id === threadContainerId) {
             const wasSingleEmail = !email.isThread
-            
+
             if (wasSingleEmail) {
               console.log('Converting single email to thread (fallback)')
               return {
@@ -1749,14 +1749,14 @@ const Dashboard = () => {
           }
           return email
         })
-        
+
         return updatedEmails.sort((a, b) => {
           const dateA = new Date(a.latestDate || a.date)
           const dateB = new Date(b.latestDate || b.date)
           return dateB - dateA
         })
       })
-      
+
       if (selectedEmail && selectedEmail._id === threadContainerId) {
         setSelectedEmail(prev => ({
           ...prev,
@@ -1789,9 +1789,9 @@ const Dashboard = () => {
     // Clear selected email when searching
     setSelectedEmailId(null)
     setSelectedEmail(null)
-    
+
     const trimmedQuery = query.trim()
-    
+
     if (trimmedQuery) {
       // Set searching state immediately for instant feedback
       setIsSearching(true)
@@ -1803,13 +1803,13 @@ const Dashboard = () => {
       setIsSearching(false)
     }
   }
-  
+
   // Optimized server search effect - single debounced search
   useEffect(() => {
     if (!token || !gmailConnected) return
-    
+
     const trimmedQuery = searchQuery.trim()
-    
+
     if (trimmedQuery) {
       // Fast debounce for instant search feeling
       const timeoutId = setTimeout(() => {
@@ -1818,7 +1818,7 @@ const Dashboard = () => {
           setIsSearching(false)
         })
       }, 200) // 200ms debounce - faster for better UX
-      
+
       return () => {
         clearTimeout(timeoutId)
       }
@@ -1857,7 +1857,7 @@ const Dashboard = () => {
           className="mb-4"
         >
           <h1 className="text-2xl font-bold text-slate-800 mb-1 flex items-center gap-2">
-            Welcome back, {user?.gmailName || user?.name || 'User'}! 
+            Welcome back, {user?.gmailName || user?.name || 'User'}!
             <ModernIcon type="welcome" size={20} color="#3b82f6" />
           </h1>
           <p className="text-slate-600 text-sm">
@@ -1873,17 +1873,17 @@ const Dashboard = () => {
           className="mb-4"
         >
           <h2 className="text-base font-semibold text-slate-800 mb-3">Connect Your Email Services</h2>
-          
+
           {/* Gmail Connection + Sync Status Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4">
             {/* LEFT: Quick Stats Cards */}
             <div className="lg:col-span-3 space-y-3 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 lg:space-y-3">
               {/* Unread Card */}
               <div className="bg-blue-400/30 backdrop-blur-xl border border-blue-200/20 rounded-xl p-2 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <ModernIcon type="email" size={12} color="#2563eb" />
-                    <span className="text-xs text-slate-600 font-medium">Unread</span>
-                  </div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <ModernIcon type="email" size={12} color="#2563eb" />
+                  <span className="text-xs text-slate-600 font-medium">Unread</span>
+                </div>
                 <h3 className="text-xl font-bold text-slate-800">{stats?.unreadCount || 0}</h3>
               </div>
 
@@ -1908,221 +1908,218 @@ const Dashboard = () => {
 
             {/* RIGHT: Gmail + Sync Cards */}
             <div className="lg:col-span-9 grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4">
-            {/* Gmail Connection Card */}
-            <div className="lg:col-span-8 bg-gradient-to-br from-blue-400/60 to-purple-10/40 backdrop-blur-xl border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-500">
-              <div className="flex items-start gap-4">
-                <div className="p-2 bg-blue-200 rounded-xl">
-                  <ModernIcon type="email" size={18} color="#3b82f6" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xl font-bold text-slate-800">Gmail</h3>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      gmailConnected 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {gmailConnected ? 'Connected' : 'Disconnected'}
-                    </span>
+              {/* Gmail Connection Card */}
+              <div className="lg:col-span-8 bg-gradient-to-br from-blue-400/60 to-purple-10/40 backdrop-blur-xl border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-500">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 bg-blue-200 rounded-xl">
+                    <ModernIcon type="email" size={18} color="#3b82f6" />
                   </div>
-                  <p className="text-sm text-slate-600 mb-4">
-                    {gmailConnected 
-                      ? 'Your Gmail is connected and syncing' 
-                      : 'Connect your Gmail account to start organizing emails'
-                    }
-                  </p>
-                  
-                  {/* Stats Row */}
-                  {gmailConnected && (
-                    <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center">
-                          <h4 className="text-2xl font-bold text-slate-800">{stats?.totalEmails || 0}</h4>
-                          <p className="text-sm text-slate-600">Total</p>
-                        </div>
-                        <div className="text-center">
-                          <h4 className="text-2xl font-bold text-slate-800">{stats?.categories || 0}</h4>
-                          <p className="text-sm text-slate-600">Categories</p>
-                        </div>
-                        <div className="text-center">
-                          <h4 className="text-2xl font-bold text-slate-800">{stats?.processedToday || 0}</h4>
-                          <p className="text-sm text-slate-600">Today</p>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xl font-bold text-slate-800">Gmail</h3>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${gmailConnected
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-slate-100 text-slate-600'
+                        }`}>
+                        {gmailConnected ? 'Connected' : 'Disconnected'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-4">
+                      {gmailConnected
+                        ? 'Your Gmail is connected and syncing'
+                        : 'Connect your Gmail account to start organizing emails'
+                      }
+                    </p>
+
+                    {/* Stats Row */}
+                    {gmailConnected && (
+                      <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="text-center">
+                            <h4 className="text-2xl font-bold text-slate-800">{stats?.totalEmails || 0}</h4>
+                            <p className="text-sm text-slate-600">Total</p>
+                          </div>
+                          <div className="text-center">
+                            <h4 className="text-2xl font-bold text-slate-800">{stats?.categories || 0}</h4>
+                            <p className="text-sm text-slate-600">Categories</p>
+                          </div>
+                          <div className="text-center">
+                            <h4 className="text-2xl font-bold text-slate-800">{stats?.processedToday || 0}</h4>
+                            <p className="text-sm text-slate-600">Today</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-col gap-2">
-                    {/* Row 1: Primary sync buttons */}
-                    <div className="flex gap-2">
-                    {gmailConnected ? (
-                      <>
-                        <button 
-                          onClick={syncGmailEmails}
-                          disabled={syncLoading || fullSyncLoading}
-                          className={`flex-1 py-2 rounded-lg font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
-                            continuousSyncActive 
-                              ? 'bg-green-500 text-white hover:bg-green-600' 
-                              : 'bg-blue-500 text-white hover:bg-blue-600'
-                          }`}
-                        >
-                          {syncLoading ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                              Syncing...
-                            </>
-                          ) : continuousSyncActive ? (
-                            <>
-                              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                              Continuous Active
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                              Start Sync
-                            </>
-                          )}
-                        </button>
-                        <button 
-                          onClick={handleFullSync}
-                          disabled={syncLoading || fullSyncLoading}
-                          className="flex-1 bg-purple-500 text-white py-2 rounded-lg font-semibold hover:bg-purple-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          {fullSyncLoading ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                              Full Syncing...
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                              </svg>
-                              Full Sync (All)
-                            </>
-                          )}
-                        </button>
-                      </>
-                    ) : (
-                      <button 
-                        onClick={handleGmailConnection}
-                        disabled={connectingGmail}
-                        className="w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {connectingGmail ? (
+                    {/* Action Buttons */}
+                    <div className="flex flex-col gap-2">
+                      {/* Row 1: Primary sync buttons */}
+                      <div className="flex gap-2">
+                        {gmailConnected ? (
                           <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                            Connecting...
+                            <button
+                              onClick={syncGmailEmails}
+                              disabled={syncLoading || fullSyncLoading}
+                              className={`flex-1 py-2 rounded-lg font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${continuousSyncActive
+                                  ? 'bg-green-500 text-white hover:bg-green-600'
+                                  : 'bg-blue-500 text-white hover:bg-blue-600'
+                                }`}
+                            >
+                              {syncLoading ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                  Syncing...
+                                </>
+                              ) : continuousSyncActive ? (
+                                <>
+                                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                                  Continuous Active
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                  Start Sync
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={handleFullSync}
+                              disabled={syncLoading || fullSyncLoading}
+                              className="flex-1 bg-purple-500 text-white py-2 rounded-lg font-semibold hover:bg-purple-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                              {fullSyncLoading ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                  Full Syncing...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                  </svg>
+                                  Full Sync (All)
+                                </>
+                              )}
+                            </button>
                           </>
                         ) : (
-                          <>
-                            <ModernIcon type="email" size={12} />
-                            Connect Gmail
-                          </>
+                          <button
+                            onClick={handleGmailConnection}
+                            disabled={connectingGmail}
+                            className="w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {connectingGmail ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                Connecting...
+                              </>
+                            ) : (
+                              <>
+                                <ModernIcon type="email" size={12} />
+                                Connect Gmail
+                              </>
+                            )}
+                          </button>
                         )}
-                      </button>
-                    )}
+                      </div>
+
+                      {/* Row 2: Reclassify and Disconnect buttons */}
+                      {gmailConnected && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleReclassifyAll}
+                            disabled={reclassifyLoading}
+                            className="flex-1 bg-green-500 text-white py-2 rounded-lg font-semibold hover:bg-green-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {reclassifyLoading ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                Reclassifying...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                Reclassify All
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={handleGmailDisconnection}
+                            disabled={disconnecting}
+                            className="px-3 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-all disabled:opacity-50"
+                          >
+                            {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sync Status Card */}
+              <div className="lg:col-span-4 bg-gradient-to-br from-green-300/80 to-green-50/60 backdrop-blur-xl border border-green-200/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-500">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-green-200/60 rounded-xl">
+                    <ModernIcon type="sync" size={16} color="#10b981" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-lg font-bold text-slate-800">Sync Status</h3>
+                      <span className={`px-2 py-1 text-white text-xs font-medium rounded-full ${continuousSyncActive ? 'bg-green-500 animate-pulse' :
+                          syncStatus.isActive ? 'bg-green-500' :
+                            syncStatus.status === 'idle' ? 'bg-gray-500' : 'bg-blue-500'
+                        }`}>
+                        {continuousSyncActive ? 'Continuous' :
+                          syncStatus.isActive ? 'Active' :
+                            syncStatus.status === 'idle' ? 'Idle' : syncStatus.status || 'Checking...'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mb-3">
+                      {continuousSyncActive ? 'Continuous sync active - checking every 30s' :
+                        syncStatus.isActive ? 'Syncing in real-time' :
+                          syncStatus.status === 'idle' ? 'Ready to sync' :
+                            'All systems operational'}
+                    </p>
+
+                    {/* Progress Box */}
+                    <div className="bg-white/80 border border-white/50 rounded-xl p-3 mb-3 text-center">
+                      <h4 className="text-3xl font-bold text-slate-800">
+                        {syncStatus.progress || 0}%
+                      </h4>
+                      <p className="text-xs text-slate-600">Progress</p>
+                      {syncStatus.synced > 0 && syncStatus.total > 0 && (
+                        <p className="text-xs text-slate-500 mt-1">
+                          {syncStatus.synced}/{syncStatus.total} emails
+                        </p>
+                      )}
+                      {syncStatus.message && (
+                        <p className="text-xs text-slate-600 mt-2 italic">
+                          {syncStatus.message}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Row 2: Reclassify and Disconnect buttons */}
-                    {gmailConnected && (
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={handleReclassifyAll}
-                          disabled={reclassifyLoading}
-                          className="flex-1 bg-green-500 text-white py-2 rounded-lg font-semibold hover:bg-green-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          {reclassifyLoading ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                              Reclassifying...
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                              </svg>
-                              Reclassify All
-                            </>
-                          )}
-                        </button>
-                        <button 
-                          onClick={handleGmailDisconnection}
-                          disabled={disconnecting}
-                          className="px-3 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-all disabled:opacity-50"
-                        >
-                          {disconnecting ? 'Disconnecting...' : 'Disconnect'}
-                        </button>
-                      </div>
-                    )}
+                    {/* Check Status Button */}
+                    <button
+                      onClick={() => {
+                        fetchStats(true)
+                        fetchSyncStatus()
+                      }}
+                      className="w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Check Status
+                    </button>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Sync Status Card */}
-            <div className="lg:col-span-4 bg-gradient-to-br from-green-300/80 to-green-50/60 backdrop-blur-xl border border-green-200/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-500">
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-green-200/60 rounded-xl">
-                  <ModernIcon type="sync" size={16} color="#10b981" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-lg font-bold text-slate-800">Sync Status</h3>
-                    <span className={`px-2 py-1 text-white text-xs font-medium rounded-full ${
-                      continuousSyncActive ? 'bg-green-500 animate-pulse' :
-                      syncStatus.isActive ? 'bg-green-500' : 
-                      syncStatus.status === 'idle' ? 'bg-gray-500' : 'bg-blue-500'
-                    }`}>
-                      {continuousSyncActive ? 'Continuous' :
-                       syncStatus.isActive ? 'Active' : 
-                       syncStatus.status === 'idle' ? 'Idle' : syncStatus.status || 'Checking...'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 mb-3">
-                    {continuousSyncActive ? 'Continuous sync active - checking every 30s' :
-                     syncStatus.isActive ? 'Syncing in real-time' : 
-                     syncStatus.status === 'idle' ? 'Ready to sync' : 
-                     'All systems operational'}
-                  </p>
-                  
-                  {/* Progress Box */}
-                  <div className="bg-white/80 border border-white/50 rounded-xl p-3 mb-3 text-center">
-                    <h4 className="text-3xl font-bold text-slate-800">
-                      {syncStatus.progress || 0}%
-                    </h4>
-                    <p className="text-xs text-slate-600">Progress</p>
-                    {syncStatus.synced > 0 && syncStatus.total > 0 && (
-                      <p className="text-xs text-slate-500 mt-1">
-                        {syncStatus.synced}/{syncStatus.total} emails
-                      </p>
-                    )}
-                    {syncStatus.message && (
-                      <p className="text-xs text-slate-600 mt-2 italic">
-                        {syncStatus.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Check Status Button */}
-                  <button 
-                    onClick={() => {
-                      fetchStats(true)
-                      fetchSyncStatus()
-                    }}
-                    className="w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Check Status
-                  </button>
-                </div>
-              </div>
-            </div>
             </div>
           </div>
         </motion.div>
@@ -2137,11 +2134,10 @@ const Dashboard = () => {
           {/* Total Emails Card */}
           <div className="group relative bg-blue-300/30 backdrop-blur-xl border border-blue-200/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-500 cursor-pointer">
             <div className="absolute top-2 right-2">
-              <span className={`px-1.5 py-0.5 text-[9px] font-medium rounded-full ${
-                percentageChange.totalEmails >= 0 
-                  ? 'bg-green-200/60 text-green-700' 
+              <span className={`px-1.5 py-0.5 text-[9px] font-medium rounded-full ${percentageChange.totalEmails >= 0
+                  ? 'bg-green-200/60 text-green-700'
                   : 'bg-red-200/60 text-red-700'
-              }`}>
+                }`}>
                 {percentageChange.totalEmails >= 0 ? '+' : ''}{percentageChange.totalEmails}%
               </span>
               <p className="text-[7px] text-slate-500 text-right mt-0.5">vs last week</p>
@@ -2166,18 +2162,18 @@ const Dashboard = () => {
                 </svg>
               </div>
             </div>
-            
+
             {/* Live/Real-time - Top Right */}
             <div className="absolute top-3 right-3 text-right">
               <div className="text-[#E87C3E] font-bold text-sm">Live</div>
               <div className="text-[#707070] text-xs">Real-time</div>
             </div>
-            
+
             {/* Large Number - Middle Left */}
             <div className="pt-8 pb-2">
               <div className="text-[#333333] font-bold text-3xl">{(stats?.processedToday || 0).toLocaleString()}</div>
             </div>
-            
+
             {/* Processed Today - Bottom Left */}
             <div className="text-[#555555] text-sm font-medium">Processed Today</div>
           </div>
@@ -2194,14 +2190,14 @@ const Dashboard = () => {
               <ModernIcon type="email" size={16} color="#ec4899" />
             </div>
             <div className="space-y-2 mt-2">
-              <button 
+              <button
                 onClick={syncGmailEmails}
                 disabled={syncLoading || !gmailConnected}
                 className="w-full bg-green-500 text-white py-1.5 rounded-lg text-xs font-semibold hover:bg-green-600 transition-all disabled:opacity-50 flex items-center justify-center gap-1"
               >
                 ✉️ Sync Gmail
               </button>
-              <button 
+              <button
                 onClick={() => {
                   console.log('🔄 Force refreshing data and categories...')
                   setForceRefresh(prev => prev + 1)
@@ -2226,12 +2222,11 @@ const Dashboard = () => {
           className="mb-4"
         >
           <div className="flex space-x-1 glass p-0.5 rounded-lg w-fit">
-            <button 
-              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-1 ${
-                activeView === 'emails' 
-                  ? 'bg-blue-500 text-white' 
+            <button
+              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-1 ${activeView === 'emails'
+                  ? 'bg-blue-500 text-white'
                   : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
-              }`}
+                }`}
               onClick={() => setActiveView('emails')}
             >
               <svg className={`w-2 h-2 ${activeView === 'emails' ? 'text-white' : 'text-slate-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2239,12 +2234,11 @@ const Dashboard = () => {
               </svg>
               Emails
             </button>
-            <button 
-              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-1 ${
-                activeView === 'analytics' 
-                  ? 'bg-blue-500 text-white' 
+            <button
+              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-1 ${activeView === 'analytics'
+                  ? 'bg-blue-500 text-white'
                   : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
-              }`}
+                }`}
               onClick={() => setActiveView('analytics')}
             >
               <svg className={`w-2 h-2 ${activeView === 'analytics' ? 'text-white' : 'text-slate-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2252,12 +2246,11 @@ const Dashboard = () => {
               </svg>
               Analytics
             </button>
-            <button 
-              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-1 ${
-                activeView === 'notifications' 
-                  ? 'bg-blue-500 text-white' 
+            <button
+              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-1 ${activeView === 'notifications'
+                  ? 'bg-blue-500 text-white'
                   : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
-              }`}
+                }`}
               onClick={() => setActiveView('notifications')}
             >
               <svg className={`w-2 h-2 ${activeView === 'notifications' ? 'text-white' : 'text-slate-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2265,7 +2258,7 @@ const Dashboard = () => {
               </svg>
               Notifications
             </button>
-            <button 
+            <button
               className="px-2.5 py-1.5 rounded-md text-sm font-medium transition-all duration-300 text-slate-600 hover:bg-blue-50 hover:text-blue-600 relative flex items-center gap-1"
               onClick={() => setShowPerformanceDashboard(true)}
             >
@@ -2293,9 +2286,8 @@ const Dashboard = () => {
                   <div className="flex gap-2">
                     <button className="group relative px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105">
                       <div className="flex items-center gap-1.5">
-                        <div className={`w-1.5 h-1.5 rounded-full ${
-                          gmailConnected ? 'bg-white' : 'bg-white/60'
-                        }`}></div>
+                        <div className={`w-1.5 h-1.5 rounded-full ${gmailConnected ? 'bg-white' : 'bg-white/60'
+                          }`}></div>
                         <span>Gmail</span>
                         {gmailConnected && (
                           <div className="flex items-center gap-1 text-xs">
@@ -2304,42 +2296,42 @@ const Dashboard = () => {
                           </div>
                         )}
                       </div>
-                       <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </button>
                   </div>
-                  
+
                   {/* Search Input */}
                   <div className="flex-1 min-w-0">
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
                         {isSearching ? (
                           <div className="animate-spin">
-                            <svg 
-                              className="h-4 w-4 text-emerald-600" 
-                              fill="none" 
-                              stroke="currentColor" 
+                            <svg
+                              className="h-4 w-4 text-emerald-600"
+                              fill="none"
+                              stroke="currentColor"
                               viewBox="0 0 24 24"
                             >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth={2} 
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                               />
                             </svg>
                           </div>
                         ) : (
-                          <svg 
-                            className="h-4 w-4 text-slate-500 transition-colors duration-300 group-focus-within:text-emerald-600" 
-                            fill="none" 
-                            stroke="currentColor" 
+                          <svg
+                            className="h-4 w-4 text-slate-500 transition-colors duration-300 group-focus-within:text-emerald-600"
+                            fill="none"
+                            stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth={2} 
-                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                             />
                           </svg>
                         )}
@@ -2354,7 +2346,7 @@ const Dashboard = () => {
                         className="w-full min-w-0 pl-10 pr-10 py-2 bg-gradient-to-r from-white/60 to-white/40 border border-white/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/70 shadow-lg hover:shadow-xl transition-all duration-300 text-slate-800 placeholder-slate-500 font-medium backdrop-blur-sm overflow-hidden text-ellipsis"
                         style={{ maxWidth: '100%' }}
                       />
-                      
+
                       {/* Clear Search Button */}
                       {searchQuery && (
                         <button
@@ -2362,17 +2354,17 @@ const Dashboard = () => {
                           className="absolute inset-y-0 right-0 pr-3 flex items-center z-10 hover:bg-white/20 rounded-r-xl transition-colors duration-200 cursor-pointer"
                           title="Clear search"
                         >
-                          <svg 
-                            className="h-3 w-3 text-slate-500 hover:text-slate-700 transition-colors duration-200" 
-                            fill="none" 
-                            stroke="currentColor" 
+                          <svg
+                            className="h-3 w-3 text-slate-500 hover:text-slate-700 transition-colors duration-200"
+                            fill="none"
+                            stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth={2} 
-                              d="M6 18L18 6M6 6l12 12" 
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
                             />
                           </svg>
                         </button>
@@ -2420,149 +2412,149 @@ const Dashboard = () => {
               )}
 
               {/* Category Tabs */}
-              <CategoryTabs 
-                value={currentCategory} 
+              <CategoryTabs
+                value={currentCategory}
                 onChange={handleCategoryChange}
                 refreshTrigger={categoryTabsRefresh}
               />
 
               {/* Main Layout */}
               <div className="space-y-4">
-                  {/* Dynamic Split Layout */}
-                  <div
-                    className="
+                {/* Dynamic Split Layout */}
+                <div
+                  className="
                       relative
                       flex lg:flex-row flex-col
                       gap-3 lg:gap-4
                       h-[calc(100vh-180px)]
                       transition-all duration-500 ease-out
                     "
-                  >
-                {/* LEFT: Email List pane */}
-                <section
-                  className={[
-                    "bg-gradient-to-br from-white/50 to-white/30 backdrop-blur-xl border border-white/30 rounded-2xl shadow-2xl shadow-blue-100/20",
-                    "overflow-hidden flex flex-col relative z-10",
-                    "transition-[flex-basis] duration-300 ease-out",
-                    selectedEmail ? "lg:flex-[0_0_42%] lg:min-w-[400px] lg:max-w-[500px] basis-full" : "basis-full"
-                  ].join(" ")}
                 >
-                  <div className="flex items-center justify-between p-4 border-b border-white/30 bg-gradient-to-r from-white/60 to-white/40">
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-1.5">
-                      <ModernIcon type="email" size={16} color="#3b82f6" />
-                      Emails
-                      {currentCategory !== 'All' && (
-                        <span className="text-sm font-medium text-slate-500 ml-1">
-                          - {currentCategory}
+                  {/* LEFT: Email List pane */}
+                  <section
+                    className={[
+                      "bg-gradient-to-br from-white/50 to-white/30 backdrop-blur-xl border border-white/30 rounded-2xl shadow-2xl shadow-blue-100/20",
+                      "overflow-hidden flex flex-col relative z-10",
+                      "transition-[flex-basis] duration-300 ease-out",
+                      selectedEmail ? "lg:flex-[0_0_42%] lg:min-w-[400px] lg:max-w-[500px] basis-full" : "basis-full"
+                    ].join(" ")}
+                  >
+                    <div className="flex items-center justify-between p-4 border-b border-white/30 bg-gradient-to-r from-white/60 to-white/40">
+                      <h3 className="text-lg font-bold text-slate-800 flex items-center gap-1.5">
+                        <ModernIcon type="email" size={16} color="#3b82f6" />
+                        Emails
+                        {currentCategory !== 'All' && (
+                          <span className="text-sm font-medium text-slate-500 ml-1">
+                            - {currentCategory}
+                          </span>
+                        )}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        {/* Non-blocking loading indicator */}
+                        {emailsLoading && (
+                          <div className="flex items-center gap-1.5 text-xs text-blue-600 font-medium animate-pulse">
+                            <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
+                            <span>Loading...</span>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            fetchEmails(true)
+                            toast.success('Emails refreshed!')
+                          }}
+                          className="p-1.5 hover:bg-blue-50 rounded-lg transition-all duration-200 group"
+                          title="Refresh emails"
+                        >
+                          <svg
+                            className={`w-4 h-4 text-slate-600 group-hover:text-blue-600 transition-all duration-500 ${emailsLoading ? 'animate-spin' : 'group-hover:rotate-180'}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                          </svg>
+                        </button>
+                        <span className="text-xs font-semibold text-slate-600 bg-gradient-to-r from-emerald-100 to-blue-100 px-2 py-0.5 rounded-full">
+                          {currentCategoryCount || 0} emails
                         </span>
-                      )}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      {/* Non-blocking loading indicator */}
-                      {emailsLoading && (
-                        <div className="flex items-center gap-1.5 text-xs text-blue-600 font-medium animate-pulse">
-                          <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
-                          <span>Loading...</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto min-h-[calc(100vh-280px)] max-h-[calc(100vh-80px)] relative">
+                      {/* Subtle loading overlay during search - doesn't hide content */}
+                      {isSearching && emails.length > 0 && (
+                        <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-20 flex items-start justify-center pt-4">
+                          <div className="bg-blue-500/90 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-pulse">
+                            <div className="animate-spin">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                            </div>
+                            <span className="text-sm font-medium">Searching...</span>
+                          </div>
                         </div>
                       )}
-                      <button
-                        onClick={() => {
-                          fetchEmails(true)
-                          toast.success('Emails refreshed!')
-                        }}
-                        className="p-1.5 hover:bg-blue-50 rounded-lg transition-all duration-200 group"
-                        title="Refresh emails"
-                      >
-                        <svg 
-                          className={`w-4 h-4 text-slate-600 group-hover:text-blue-600 transition-all duration-500 ${emailsLoading ? 'animate-spin' : 'group-hover:rotate-180'}`}
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth={2} 
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-                          />
-                        </svg>
-                      </button>
-                      <span className="text-xs font-semibold text-slate-600 bg-gradient-to-r from-emerald-100 to-blue-100 px-2 py-0.5 rounded-full">
-                        {currentCategoryCount || 0} emails
-                      </span>
+                      <EmailList
+                        items={emails}
+                        selectedId={selectedEmailId}
+                        onSelect={handleEmailSelect}
+                        loading={emailsLoading}
+                        onPageChange={handlePageChange}
+                        totalEmails={currentCategoryCount || stats?.totalEmails || 0}
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onBulkSelect={handleBulkSelect}
+                        selectedEmails={selectedEmails}
+                        gmailConnected={gmailConnected}
+                        isCompact={!!selectedEmail}
+                        searchQuery={searchQuery}
+                      />
                     </div>
-                  </div>
-                  <div className="flex-1 overflow-y-auto min-h-[calc(100vh-280px)] max-h-[calc(100vh-80px)] relative">
-                     {/* Subtle loading overlay during search - doesn't hide content */}
-                     {isSearching && emails.length > 0 && (
-                       <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-20 flex items-start justify-center pt-4">
-                         <div className="bg-blue-500/90 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-pulse">
-                           <div className="animate-spin">
-                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                             </svg>
-                           </div>
-                           <span className="text-sm font-medium">Searching...</span>
-                         </div>
-                       </div>
-                     )}
-                     <EmailList
-                       items={emails}
-                       selectedId={selectedEmailId}
-                       onSelect={handleEmailSelect}
-                       loading={emailsLoading}
-                       onPageChange={handlePageChange}
-                       totalEmails={currentCategoryCount || stats?.totalEmails || 0}
-                       currentPage={currentPage}
-                       totalPages={totalPages}
-                       onBulkSelect={handleBulkSelect}
-                       selectedEmails={selectedEmails}
-                       gmailConnected={gmailConnected}
-                       isCompact={!!selectedEmail}
-                       searchQuery={searchQuery}
-                     />
-                  </div>
-                </section>
+                  </section>
 
-                {/* RIGHT: Email Reader pane (hidden until selected) */}
-                <section
-                  className={[
-                    "bg-gradient-to-br from-white/50 to-white/30 backdrop-blur-xl border border-white/30 rounded-2xl shadow-2xl shadow-blue-100/20",
-                    "overflow-hidden flex flex-col lg:flex-[0_0_58%] lg:min-w-[600px] relative z-10",
-                    "transition-opacity duration-200",
-                    selectedEmail ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-                  ].join(" ")}
-                  style={{ display: selectedEmail ? undefined : "none" }}
-                >
-                  <div className="flex-1 overflow-y-auto">
-                    <EmailReader
-                      email={selectedEmail}
-                      threadContainerId={selectedEmailId}
-                      onArchive={handleEmailArchive}
-                      onUnarchive={handleEmailUnarchive}
-                      onDelete={handleEmailDelete}
-                      onExport={handleEmailExport}
-                      onClose={handleEmailClose}
-                      onReplySuccess={handleEmailReplySuccess}
-                      onDeleteSuccess={() => {
-                        // Refresh thread messages after deletion
-                        if (selectedEmail && selectedEmail.isThread && selectedEmailId) {
-                          loadEmailDetails(selectedEmailId)
-                        }
-                      }}
-                      loading={emailDetailLoading}
-                    />
-                  </div>
-                </section>
-                  </div>
+                  {/* RIGHT: Email Reader pane (hidden until selected) */}
+                  <section
+                    className={[
+                      "bg-gradient-to-br from-white/50 to-white/30 backdrop-blur-xl border border-white/30 rounded-2xl shadow-2xl shadow-blue-100/20",
+                      "overflow-hidden flex flex-col lg:flex-[0_0_58%] lg:min-w-[600px] relative z-10",
+                      "transition-opacity duration-200",
+                      selectedEmail ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                    ].join(" ")}
+                    style={{ display: selectedEmail ? undefined : "none" }}
+                  >
+                    <div className="flex-1 overflow-y-auto">
+                      <EmailReader
+                        email={selectedEmail}
+                        threadContainerId={selectedEmailId}
+                        onArchive={handleEmailArchive}
+                        onUnarchive={handleEmailUnarchive}
+                        onDelete={handleEmailDelete}
+                        onExport={handleEmailExport}
+                        onClose={handleEmailClose}
+                        onReplySuccess={handleEmailReplySuccess}
+                        onDeleteSuccess={() => {
+                          // Refresh thread messages after deletion
+                          if (selectedEmail && selectedEmail.isThread && selectedEmailId) {
+                            loadEmailDetails(selectedEmailId)
+                          }
+                        }}
+                        loading={emailDetailLoading}
+                      />
+                    </div>
+                  </section>
+                </div>
               </div>
             </div>
           ) : activeView === 'analytics' ? (
             <SuperAnalyticsDashboard />
           ) : activeView === 'notifications' ? (
-            <NotificationCenter 
-              isOpen={true} 
-              onClose={() => setActiveView('emails')} 
+            <NotificationCenter
+              isOpen={true}
+              onClose={() => setActiveView('emails')}
               onNotificationUpdate={() => window.dispatchEvent(new CustomEvent('notificationUpdated'))}
             />
           ) : null}

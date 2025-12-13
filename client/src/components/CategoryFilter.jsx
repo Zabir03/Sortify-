@@ -18,7 +18,7 @@ const CategoryFilter = () => {
   const fetchLabels = async () => {
     try {
       const response = await api.get('/emails/labels')
-      setLabels(response.data.labels || [])
+      setLabels((response.data.labels || []).filter(l => l.toLowerCase() !== 'all'))
     } catch (error) {
       console.error('Error fetching labels:', error)
     } finally {
@@ -78,7 +78,7 @@ const CategoryFilter = () => {
       className="card-glass p-6"
     >
       <h3 className="text-lg font-semibold text-slate-800 mb-4">Filters</h3>
-      
+
       <div className="space-y-4">
         {/* Provider Filter */}
         <div>
@@ -88,31 +88,28 @@ const CategoryFilter = () => {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => handleProviderChange('')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                !currentProvider
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${!currentProvider
                   ? 'bg-slate-200/50 text-slate-800'
                   : 'bg-slate-100/50 text-slate-600 hover:text-slate-800 hover:bg-slate-200/50'
-              }`}
+                }`}
             >
               All Providers
             </button>
             <button
               onClick={() => handleProviderChange('gmail')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                currentProvider === 'gmail'
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${currentProvider === 'gmail'
                   ? 'bg-red-500/20 text-red-600 border border-red-500/30'
                   : 'bg-slate-100/50 text-slate-600 hover:text-slate-800 hover:bg-slate-200/50'
-              }`}
+                }`}
             >
               📧 Gmail
             </button>
             <button
               onClick={() => handleProviderChange('outlook')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                currentProvider === 'outlook'
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${currentProvider === 'outlook'
                   ? 'bg-blue-500/20 text-blue-600 border border-blue-500/30'
                   : 'bg-slate-100/50 text-slate-600 hover:text-slate-800 hover:bg-slate-200/50'
-              }`}
+                }`}
             >
               📬 Outlook
             </button>
@@ -127,11 +124,10 @@ const CategoryFilter = () => {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => handleLabelChange('')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                !currentLabel
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${!currentLabel
                   ? 'bg-slate-200/50 text-slate-800'
                   : 'bg-slate-100/50 text-slate-600 hover:text-slate-800 hover:bg-slate-200/50'
-              }`}
+                }`}
             >
               All Categories
             </button>
@@ -139,11 +135,10 @@ const CategoryFilter = () => {
               <button
                 key={label}
                 onClick={() => handleLabelChange(label)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  currentLabel === label
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${currentLabel === label
                     ? 'bg-purple-500/20 text-purple-600 border border-purple-500/30'
                     : 'bg-slate-100/50 text-slate-600 hover:text-slate-800 hover:bg-slate-200/50'
-                }`}
+                  }`}
               >
                 {label}
               </button>

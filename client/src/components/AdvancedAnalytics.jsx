@@ -29,33 +29,33 @@ const AdvancedAnalytics = () => {
   // Handle WebSocket updates for category changes and reclassifications
   useEffect(() => {
     if (!lastMessage) return
-    
+
     console.log('AdvancedAnalytics received WebSocket message:', lastMessage)
-    
+
     switch (lastMessage.type) {
       case 'category_updated':
         console.log('🏷️ AdvancedAnalytics received category update:', lastMessage.data)
         // Refresh analytics when categories change
         fetchAnalytics()
         break
-        
+
       case 'reclassification_complete':
         console.log('✅ AdvancedAnalytics received reclassification complete:', lastMessage.data)
         // Refresh analytics when reclassification completes
         fetchAnalytics()
         break
-        
+
       case 'reclassification_progress':
         console.log('🔄 AdvancedAnalytics received reclassification progress:', lastMessage.data)
         // Optionally show progress indicator or just log
         break
-        
+
       case 'email_synced':
         console.log('📧 AdvancedAnalytics received email sync update:', lastMessage.data)
         // Refresh analytics when new emails are synced
         fetchAnalytics()
         break
-        
+
       default:
         break
     }
@@ -113,9 +113,11 @@ const AdvancedAnalytics = () => {
             className="px-4 py-2 bg-white/60 border border-white/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-800"
           >
             <option value="All">All Categories</option>
-            {Object.keys(analytics.categories).map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
+            {Object.keys(analytics.categories)
+              .filter(category => category !== 'All')
+              .map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
           </select>
         </div>
       </div>

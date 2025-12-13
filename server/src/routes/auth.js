@@ -229,7 +229,7 @@ router.post('/google', asyncHandler(async (req, res) => {
     if (!user) {
       // Check if user exists with same email
       user = await User.findOne({ email: data.email })
-      
+
       if (user) {
         // Link Google account to existing user
         user.googleId = data.id
@@ -291,7 +291,7 @@ router.post('/google', asyncHandler(async (req, res) => {
 router.get('/google/login', asyncHandler(async (req, res) => {
   try {
     console.log('🔧 Generating Google OAuth URL for login...')
-    
+
     // Check if environment variables are available
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
       console.error('❌ Missing Google OAuth credentials')
@@ -300,23 +300,23 @@ router.get('/google/login', asyncHandler(async (req, res) => {
         message: 'Google OAuth is not configured properly. Missing client credentials.'
       })
     }
-    
+
     const oauth2Client = getOAuth2Client()
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/gmail/callback'
-    
+
     console.log('🔧 OAuth config:', {
       clientId: process.env.GOOGLE_CLIENT_ID ? 'SET' : 'MISSING',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'MISSING',
       redirectUri: redirectUri
     })
-    
+
     // Generate Google OAuth URL for complete login with Gmail connection
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
       scope: [
         'openid',
-        'email', 
+        'email',
         'profile',
         'https://www.googleapis.com/auth/gmail.readonly',
         'https://www.googleapis.com/auth/gmail.modify',
@@ -349,7 +349,7 @@ router.get('/google/login', asyncHandler(async (req, res) => {
 router.get('/google/connect', protect, asyncHandler(async (req, res) => {
   try {
     const oauth2Client = getOAuth2Client()
-    
+
     // Generate Google OAuth URL for Gmail connection only
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
@@ -382,7 +382,7 @@ router.get('/google/connect', protect, asyncHandler(async (req, res) => {
 // @access  Private
 router.get('/me', protect, asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id)
-  
+
   res.json({
     success: true,
     user: {
@@ -451,12 +451,12 @@ router.put('/profile', protect, [
 
   // Send notification about profile update
   const updatedFieldNames = Object.keys(updateFields)
-  const updateMessage = updatedFieldNames.length > 0 
+  const updateMessage = updatedFieldNames.length > 0
     ? `Profile updated: ${updatedFieldNames.join(', ')}`
     : 'Profile updated'
 
   console.log('📢 Sending profile update notification for user:', req.user._id.toString(), 'Fields:', updatedFieldNames)
-  
+
   // Send notification asynchronously
   notificationService.sendProfileUpdateNotification(req.user._id.toString(), {
     message: updateMessage,
@@ -485,6 +485,10 @@ router.put('/profile', protect, [
 // @access  Private
 router.post('/logout', protect, asyncHandler(async (req, res) => {
   try {
+    // 1. Kill active reclassification processes
+    const { stopProcess } = await import('../services/reclassificationProcessService.js')
+    stopProcess(req.user._id.toString())
+
     // Cleanup full content on logout (keep thumbnails)
     const cleanupResult = await cleanupOnLogout(req.user._id)
     console.log(`✅ Logout cleanup for user ${req.user._id}:`, cleanupResult.cleanedCount, 'emails cleaned')
@@ -507,17 +511,17 @@ router.post('/logout', protect, asyncHandler(async (req, res) => {
   // Clear all notifications for this user on logout
   try {
     const userId = req.user._id.toString()
-    
+
     // Get count before deletion for logging
     const userNotificationCount = await Notification.countDocuments({
       userId: { $in: [userId, req.user._id] }
     })
-    
+
     // Remove all notifications for this user from database
     await Notification.deleteMany({
       userId: { $in: [userId, req.user._id] }
     })
-    
+
     console.log(`✅ Cleared ${userNotificationCount} notifications for user ${userId} on logout`)
   } catch (error) {
     console.error('❌ Notification cleanup error on logout:', error)
@@ -590,7 +594,7 @@ router.post('/clear-blocks', asyncHandler(async (req, res) => {
     global.securityService.failedAttempts.clear()
     global.securityService.suspiciousActivities.clear()
   }
-  
+
   res.json({
     success: true,
     message: 'All blocked IPs and failed attempts cleared'
@@ -602,7 +606,7 @@ router.post('/clear-blocks', asyncHandler(async (req, res) => {
 // @access  Public
 router.get('/oauth/callback', asyncHandler(async (req, res) => {
   console.log('🔵 Frontend OAuth callback route hit!', req.query)
-  
+
   try {
     const { code } = req.query
 
@@ -691,7 +695,7 @@ router.get('/oauth/callback', asyncHandler(async (req, res) => {
 router.get('/gmail/connect', asyncHandler(async (req, res) => {
   try {
     console.log('Generating Gmail OAuth URL')
-    
+
     const SCOPES = [
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/gmail.modify',
@@ -788,7 +792,7 @@ router.get('/gmail/callback', asyncHandler(async (req, res) => {
         user.gmailName = userInfo.name || userInfo.email
         await user.save()
         console.log('✅ Updated existing user with complete Gmail setup:', userInfo.email)
-        
+
         // Send notification about Gmail connection
         notificationService.sendConnectionNotification(user._id.toString(), {
           status: 'connected',
@@ -805,11 +809,11 @@ router.get('/gmail/callback', asyncHandler(async (req, res) => {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
         return res.redirect(`${frontendUrl}/login?error=auth_required`)
       }
-      
+
       const token = authHeader.substring(7)
       const decoded = jwt.verify(token, process.env.JWT_SECRET)
       user = await User.findById(decoded.id)
-      
+
       if (!user) {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
         return res.redirect(`${frontendUrl}/login?error=user_not_found`)
@@ -824,7 +828,7 @@ router.get('/gmail/callback', asyncHandler(async (req, res) => {
       user.gmailName = userInfo.name || userInfo.email
       await user.save()
       console.log('✅ Connected Gmail to existing user:', userInfo.email)
-      
+
       // Send notification about Gmail connection
       notificationService.sendConnectionNotification(user._id.toString(), {
         status: 'connected',
@@ -837,7 +841,7 @@ router.get('/gmail/callback', asyncHandler(async (req, res) => {
 
     // Generate JWT token for the user
     const jwtToken = generateToken(user._id)
-    
+
     // Set cookie with token
     res.cookie('token', jwtToken, {
       httpOnly: true,
@@ -851,7 +855,7 @@ router.get('/gmail/callback', asyncHandler(async (req, res) => {
     res.redirect(`${frontendUrl}/oauth/callback?token=${jwtToken}`)
   } catch (error) {
     console.error('❌ OAuth callback error:', error)
-    
+
     // Redirect back to appropriate page with error
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
     const errorType = error.message.includes('jwt') ? 'auth_error' : 'oauth_error'
@@ -885,7 +889,7 @@ router.post('/microsoft/connect', protect, asyncHandler(async (req, res) => {
 router.post('/gmail/disconnect', protect, asyncHandler(async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-    
+
     // Stop Gmail watch if active
     if (user.gmailWatchActive) {
       try {
@@ -910,9 +914,9 @@ router.post('/gmail/disconnect', protect, asyncHandler(async (req, res) => {
 
     // Purge all Gmail emails for this user
     const Email = (await import('../models/Email.js')).default
-    const deleteResult = await Email.deleteMany({ 
-      userId: req.user._id, 
-      provider: 'gmail' 
+    const deleteResult = await Email.deleteMany({
+      userId: req.user._id,
+      provider: 'gmail'
     })
 
     console.log(`🗑️ Purged ${deleteResult.deletedCount} Gmail emails for user ${user.email}`)
@@ -974,10 +978,10 @@ router.delete('/account', protect, asyncHandler(async (req, res) => {
   try {
     // Delete user and all associated data
     await User.findByIdAndDelete(userId)
-    
+
     // Clear the token cookie
     res.clearCookie('token')
-    
+
     res.json({
       success: true,
       message: 'Account deleted successfully'

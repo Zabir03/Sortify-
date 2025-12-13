@@ -16,12 +16,12 @@ const connectDB = async () => {
   try {
     const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/sortify'
     console.log('📊 Connecting to MongoDB...')
-    
+
     await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     })
-    
+
     console.log('✅ Connected to MongoDB successfully')
     console.log(`   Host: ${mongoose.connection.host}`)
     console.log(`   Database: ${mongoose.connection.name}`)
@@ -36,10 +36,23 @@ const main = async () => {
   try {
     // Connect to database FIRST
     await connectDB()
-    
+
     // Get userId from command line or use default
-    const userId = process.argv[2] || '68eab61a651a6b52f39547de'
-    
+    // Get userId from command line or find the first user
+    let userId = process.argv[2]
+
+    if (!userId) {
+      const User = (await import('../models/User.js')).default
+      const firstUser = await User.findOne({})
+      if (firstUser) {
+        userId = firstUser._id.toString()
+        console.log(`ℹ️  No userId provided, using first found user: ${userId} (${firstUser.email})`)
+      } else {
+        console.error('❌ No users found in database')
+        process.exit(1)
+      }
+    }
+
     console.log('\n🚀 Starting Rule-Based Email Reclassification')
     console.log('='.repeat(60))
     console.log(`📌 Target User: ${userId}`)
@@ -48,17 +61,17 @@ const main = async () => {
     console.log('   - Batch Size: 100 emails')
     console.log('   - Classification: Rule-Based (Label + Keyword)')
     console.log('\n🔄 Starting reclassification...\n')
-    
+
     const startTime = Date.now()
-    
+
     // Run reclassification
     const result = await reclassifyAllEmailsWithRuleBased(userId, {
       preserveManual: true,
       batchSize: 100
     })
-    
+
     const duration = Math.floor((Date.now() - startTime) / 1000)
-    
+
     console.log('\n' + '='.repeat(60))
     console.log('📊 RECLASSIFICATION COMPLETE')
     console.log('='.repeat(60))
@@ -69,7 +82,7 @@ const main = async () => {
     console.log(`⏭️  Skipped (Manual): ${result.statistics.skippedManualEmails}`)
     console.log(`⏭️  Skipped (Same): ${result.statistics.skippedSameCategory}`)
     console.log(`❌ Errors: ${result.statistics.errorCount}`)
-    
+
     if (Object.keys(result.statistics.categoryChanges || {}).length > 0) {
       console.log('\n📋 Category Changes:')
       Object.keys(result.statistics.categoryChanges).forEach(oldCat => {
@@ -79,17 +92,17 @@ const main = async () => {
         })
       })
     }
-    
+
     const formatDuration = (seconds) => {
       if (seconds < 60) return `${seconds}s`
       if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
       return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
     }
-    
+
     console.log(`\n⏱️  Total Duration: ${formatDuration(duration)}`)
     console.log('✅ Reclassification completed successfully!')
     console.log('\n')
-    
+
   } catch (error) {
     console.error('\n❌ Fatal error:', error.message)
     console.error(error.stack)

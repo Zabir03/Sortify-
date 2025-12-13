@@ -7,11 +7,11 @@
  */
 export const extractSenderDomain = (from) => {
   if (!from) return null
-  
+
   // Extract email from "Name <email@domain.com>" format
   const emailMatch = from.match(/<(.+?)>/)
   const email = emailMatch ? emailMatch[1] : from
-  
+
   // Extract domain from email
   const domainMatch = email.match(/@(.+)$/)
   return domainMatch ? domainMatch[1].trim() : null
@@ -24,13 +24,13 @@ export const extractSenderDomain = (from) => {
  */
 export const extractSenderName = (from) => {
   if (!from) return null
-  
+
   // Extract name from "Name <email@domain.com>" format
   const nameMatch = from.match(/^([^<]+)</)
   if (nameMatch) {
     return nameMatch[1].trim()
   }
-  
+
   // If no angle brackets, return everything before @ symbol
   const beforeAt = from.split('@')[0]
   return beforeAt.trim()
@@ -44,12 +44,12 @@ export const extractSenderName = (from) => {
  */
 export const matchesDomainPattern = (domain, pattern) => {
   if (!domain || !pattern) return false
-  
+
   // Exact match
   if (domain.toLowerCase() === pattern.toLowerCase()) {
     return true
   }
-  
+
   // Wildcard pattern (e.g., "*.sharda.ac.in")
   if (pattern.includes('*')) {
     const regexPattern = pattern
@@ -58,7 +58,7 @@ export const matchesDomainPattern = (domain, pattern) => {
     const regex = new RegExp(`^${regexPattern}$`, 'i')
     return regex.test(domain)
   }
-  
+
   return false
 }
 
@@ -70,7 +70,7 @@ export const matchesDomainPattern = (domain, pattern) => {
  */
 export const matchesNamePattern = (name, pattern) => {
   if (!name || !pattern) return false
-  
+
   // Case-insensitive contains check
   return name.toLowerCase().includes(pattern.toLowerCase())
 }
@@ -85,27 +85,27 @@ export const countKeywordMatches = (text, keywords) => {
   if (!text || !keywords || keywords.length === 0) {
     return { count: 0, matchedKeywords: [], score: 0 }
   }
-  
+
   const lowerText = text.toLowerCase()
   const matchedKeywords = []
   let totalScore = 0
-  
+
   keywords.forEach(keyword => {
     const lowerKeyword = keyword.toLowerCase()
-    
+
     // Word boundary regex for better matching
     const regex = new RegExp(`\\b${lowerKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi')
     const matches = lowerText.match(regex)
-    
+
     if (matches && matches.length > 0) {
       matchedKeywords.push(keyword)
-      
+
       // Score based on number of matches and keyword length
       const keywordScore = matches.length * (keyword.length > 5 ? 1.5 : 1)
       totalScore += keywordScore
     }
   })
-  
+
   return {
     count: matchedKeywords.length,
     matchedKeywords,
@@ -121,13 +121,13 @@ export const countKeywordMatches = (text, keywords) => {
  */
 export const calculateConfidence = (matches, baseConfidence) => {
   let confidence = baseConfidence
-  
+
   // Boost confidence based on number of keyword matches
   if (matches.score > 0) {
     const boost = Math.min(matches.score * 0.02, 0.15) // Max 15% boost
     confidence = Math.min(confidence + boost, 0.95)
   }
-  
+
   return Math.round(confidence * 100) / 100 // Round to 2 decimals
 }
 
@@ -138,7 +138,7 @@ export const calculateConfidence = (matches, baseConfidence) => {
  */
 export const extractProfessorTitle = (from) => {
   if (!from) return null
-  
+
   // Pattern 1: "Dr. Nishant Gupta (CSE Associate Professor)" - check parentheses first
   const parenPattern = /\(([^)]*(?:Assistant|Associate)?\s*(?:Professor|Faculty|Prof\.).*?)\)/i
   const parenMatch = from.match(parenPattern)
@@ -153,7 +153,7 @@ export const extractProfessorTitle = (from) => {
       fullMatch: parenMatch[0].trim()
     }
   }
-  
+
   // Pattern 2: "Dr. Nishant Gupta" at start
   const drNamePattern = /\b(Dr\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/i
   const drMatch = from.match(drNamePattern)
@@ -164,7 +164,7 @@ export const extractProfessorTitle = (from) => {
       fullMatch: drMatch[0].trim()
     }
   }
-  
+
   // Pattern 3: "(Assistant Professor)" or "(Associate Professor)" anywhere
   const profPattern = /(Assistant|Associate)?\s*(?:Professor|Prof\.|Faculty)/i
   if (profPattern.test(from)) {
@@ -175,7 +175,7 @@ export const extractProfessorTitle = (from) => {
       fullMatch: from
     }
   }
-  
+
   // Pattern 4: "Dr." anywhere in sender
   if (/Dr\./i.test(from)) {
     const name = extractSenderName(from)
@@ -185,7 +185,7 @@ export const extractProfessorTitle = (from) => {
       fullMatch: from
     }
   }
-  
+
   return null
 }
 
@@ -199,28 +199,28 @@ export const matchPhrases = (text, phrases) => {
   if (!text || !phrases || phrases.length === 0) {
     return { count: 0, matchedPhrases: [], score: 0 }
   }
-  
+
   const lowerText = text.toLowerCase()
   const matchedPhrases = []
   let totalScore = 0
-  
+
   phrases.forEach(phrase => {
     const lowerPhrase = phrase.toLowerCase()
-    
+
     // Escape special regex characters
     const escapedPhrase = lowerPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const regex = new RegExp(escapedPhrase, 'gi')
     const matches = lowerText.match(regex)
-    
+
     if (matches && matches.length > 0) {
       matchedPhrases.push(phrase)
-      
+
       // Higher score for phrase matches (they're more specific)
       const phraseScore = matches.length * 2.5
       totalScore += phraseScore
     }
   })
-  
+
   return {
     count: matchedPhrases.length,
     matchedPhrases,
@@ -236,11 +236,11 @@ export const matchPhrases = (text, phrases) => {
  */
 export const matchesExactEmail = (from, emailPattern) => {
   if (!from || !emailPattern) return false
-  
+
   // Extract email from "Name <email@domain.com>" format
   const emailMatch = from.match(/<(.+?)>/)
   const email = emailMatch ? emailMatch[1].trim().toLowerCase() : from.trim().toLowerCase()
-  
+
   return email === emailPattern.toLowerCase()
 }
 
@@ -252,11 +252,11 @@ export const matchesExactEmail = (from, emailPattern) => {
  */
 export const matchSpecificSender = (from, categoryName) => {
   if (!from || !categoryName) return null
-  
+
   const lowerFrom = from.toLowerCase()
   const senderName = extractSenderName(from) || ''
   const domain = extractSenderDomain(from) || ''
-  
+
   // HOD-specific patterns
   if (categoryName === 'HOD') {
     // Check for HOD email domains (hod.xxx@sharda.ac.in)
@@ -264,36 +264,49 @@ export const matchSpecificSender = (from, categoryName) => {
       return { matched: true, confidence: 0.98, pattern: 'HOD domain' }
     }
     // Check for HOD in sender name or full from string
-    if (lowerFrom.includes('hod cse') || 
-        lowerFrom.includes('hod ece') ||
-        lowerFrom.includes('hod me') ||
-        lowerFrom.includes('hod ce') ||
-        lowerFrom.includes('hod ') ||
-        senderName.toLowerCase().includes('hod') ||
-        lowerFrom.includes('head of department') ||
-        lowerFrom.includes('head of dept')) {
+    if (lowerFrom.includes('hod cse') ||
+      lowerFrom.includes('hod ece') ||
+      lowerFrom.includes('hod me') ||
+      lowerFrom.includes('hod ce') ||
+      lowerFrom.includes('hod ') ||
+      senderName.toLowerCase().includes('hod') ||
+      lowerFrom.includes('head of department') ||
+      lowerFrom.includes('head of dept')) {
       return { matched: true, confidence: 0.95, pattern: 'HOD sender' }
     }
   }
-  
+
   // E-Zone-specific patterns
   if (categoryName === 'E-Zone') {
-    if (lowerFrom.includes('ezone@shardauniversity.com') || 
-        lowerFrom.includes('e-zone online portal') ||
-        domain.includes('ezone')) {
+    if (lowerFrom.includes('ezone@shardauniversity.com') ||
+      lowerFrom.includes('e-zone online portal') ||
+      domain.includes('ezone')) {
       return { matched: true, confidence: 0.98, pattern: 'E-Zone sender' }
     }
   }
-  
+
   // NPTEL-specific patterns
   if (categoryName === 'NPTEL') {
-    if (domain.includes('nptel.iitm.ac.in') || 
-        domain.includes('nptel.ac.in') ||
-        lowerFrom.includes('onlinecourses@nptel')) {
+    if (domain.includes('nptel.iitm.ac.in') ||
+      domain.includes('nptel.ac.in') ||
+      lowerFrom.includes('onlinecourses@nptel') ||
+      lowerFrom.includes('swayam.gov.in')) {
       return { matched: true, confidence: 0.95, pattern: 'NPTEL sender' }
     }
   }
-  
+
+  // Placement-specific patterns (NEW)
+  if (categoryName === 'Placement') {
+    if (lowerFrom.includes('placement') ||
+      lowerFrom.includes('recruitment') ||
+      lowerFrom.includes('career services') ||
+      lowerFrom.includes('talent acquisition') ||
+      lowerFrom.includes('campus hiring') ||
+      lowerFrom.includes('shardainformatics.com')) {
+      return { matched: true, confidence: 0.95, pattern: 'Placement sender' }
+    }
+  }
+
   // Professor-specific patterns
   if (categoryName === 'Professor') {
     // Check for specific professor names first (highest confidence)
@@ -307,73 +320,79 @@ export const matchSpecificSender = (from, categoryName) => {
         return { matched: true, confidence: 0.95, pattern: 'Professor name match', name: profName }
       }
     }
-    
+
     // Check for professor title patterns
     const profTitle = extractProfessorTitle(from)
     if (profTitle) {
       return { matched: true, confidence: 0.92, pattern: 'Professor title', title: profTitle }
     }
-    
+
     // Check for email domain patterns (sharda.ac.in with professor indicators)
     if (domain.includes('sharda.ac.in')) {
       // Check if sender name contains professor indicators
-      if (lowerName.includes('professor') || lowerName.includes('dr.') || 
-          lowerName.includes('assistant professor') || lowerName.includes('associate professor')) {
+      if (lowerName.includes('professor') || lowerName.includes('dr.') ||
+        lowerName.includes('assistant professor') || lowerName.includes('associate professor') ||
+        lowerName.includes('faculty')) {
         return { matched: true, confidence: 0.88, pattern: 'Professor domain + name', domain: domain }
       }
     }
   }
-  
+
   // ServiceNow-specific patterns (for "Other" category)
   if (categoryName === 'Other') {
     // ServiceNow patterns
-    if (domain.includes('service-now.com') || domain.includes('servicenow.com') || 
-        domain.includes('nowlearning.com') || domain.includes('signonmail.servicenow.com')) {
+    if (domain.includes('service-now.com') || domain.includes('servicenow.com') ||
+      domain.includes('nowlearning.com') || domain.includes('signonmail.servicenow.com')) {
       return { matched: true, confidence: 0.95, pattern: 'ServiceNow domain', domain: domain }
     }
     if (lowerFrom.includes('servicenow university') || lowerFrom.includes('nowlearning@')) {
       return { matched: true, confidence: 0.95, pattern: 'ServiceNow sender', sender: from }
     }
-    
+
     // OpenAI/ChatGPT patterns
-    if (domain.includes('email.openai.com') || domain.includes('openai.com') || 
-        domain.includes('chatgpt.com')) {
+    if (domain.includes('email.openai.com') || domain.includes('openai.com') ||
+      domain.includes('chatgpt.com')) {
       return { matched: true, confidence: 0.95, pattern: 'OpenAI/ChatGPT domain', domain: domain }
     }
-    if (lowerFrom.includes('chatgpt') || lowerFrom.includes('openai') || 
-        lowerFrom.includes('noreply@email.openai.com')) {
+    if (lowerFrom.includes('chatgpt') || lowerFrom.includes('openai') ||
+      lowerFrom.includes('noreply@email.openai.com')) {
       return { matched: true, confidence: 0.95, pattern: 'OpenAI/ChatGPT sender', sender: from }
     }
+
+    // GitHub/Tech patterns
+    if (domain.includes('github.com') || lowerFrom.includes('github')) {
+      return { matched: true, confidence: 0.95, pattern: 'GitHub sender', sender: from }
+    }
   }
-  
+
   // Promotions-specific patterns
   if (categoryName === 'Promotions') {
     // Check for "'Promotions' via" pattern (with quotes)
-    if (lowerFrom.includes("'promotions' via") || 
-        lowerFrom.includes('"promotions" via') ||
-        lowerFrom.includes("promotions' via")) {
+    if (lowerFrom.includes("'promotions' via") ||
+      lowerFrom.includes('"promotions" via') ||
+      lowerFrom.includes("promotions' via") ||
+      lowerFrom.includes('promotions via')) {
       return { matched: true, confidence: 0.95, pattern: 'Promotions sender' }
     }
-    // Check for "Promotions via UG Student Group" pattern
-    if (lowerFrom.includes('promotions via ug student group') ||
-        lowerFrom.includes('promotions via')) {
-      return { matched: true, confidence: 0.92, pattern: 'Promotions sender' }
+    // Check specifically for shardacare/healthcity
+    if (domain.includes('shardacare.com') || lowerFrom.includes('healthcity')) {
+      return { matched: true, confidence: 0.98, pattern: 'HealthCity/ShardaCare sender' }
     }
     // Check sender name for "Promotions"
     if (senderName.toLowerCase().includes('promotions')) {
       return { matched: true, confidence: 0.90, pattern: 'Promotions in sender name' }
     }
   }
-  
+
   // Whats happening-specific patterns
   if (categoryName === 'Whats happening') {
-    if (lowerFrom.includes("'what's happening' via") || 
-        lowerFrom.includes("what's happening via") ||
-        lowerFrom.includes('whatshappening@')) {
+    if (lowerFrom.includes("'what's happening' via") ||
+      lowerFrom.includes("what's happening via") ||
+      lowerFrom.includes('whatshappening@')) {
       return { matched: true, confidence: 0.92, pattern: 'Whats happening sender' }
     }
   }
-  
+
   return null
 }
 

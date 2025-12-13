@@ -48,7 +48,7 @@ const getGmailClient = (accessToken, refreshToken) => {
 router.get('/gmail/check-new', protect, asyncHandler(async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-    
+
     if (!user.gmailConnected || !user.gmailAccessToken) {
       return res.status(400).json({
         success: false,
@@ -58,9 +58,9 @@ router.get('/gmail/check-new', protect, asyncHandler(async (req, res) => {
     }
 
     const gmail = getGmailClient(user.gmailAccessToken, user.gmailRefreshToken)
-    
+
     // Find the most recent email we already have
-    const latestEmail = await Email.findOne({ 
+    const latestEmail = await Email.findOne({
       userId: user._id,
       provider: 'gmail'
     })
@@ -75,7 +75,7 @@ router.get('/gmail/check-new', protect, asyncHandler(async (req, res) => {
       const afterTimestamp = Math.floor(latestEmail.date.getTime() / 1000)
       query = `in:inbox after:${afterTimestamp}`
     }
-    
+
     // Check if there are any new emails (limit to 1 for efficiency)
     const response = await gmail.users.messages.list({
       userId: 'me',
@@ -90,7 +90,7 @@ router.get('/gmail/check-new', protect, asyncHandler(async (req, res) => {
       success: true,
       hasNewEmails,
       estimatedCount,
-      message: hasNewEmails 
+      message: hasNewEmails
         ? `Found approximately ${estimatedCount} new email(s) to sync`
         : 'No new emails to sync'
     })
@@ -110,7 +110,7 @@ router.get('/gmail/check-new', protect, asyncHandler(async (req, res) => {
 router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-    
+
     if (!user.gmailConnected || !user.gmailAccessToken) {
       return res.status(400).json({
         success: false,
@@ -119,9 +119,9 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
     }
 
     const gmail = getGmailClient(user.gmailAccessToken, user.gmailRefreshToken)
-    
+
     // Find the most recent email we already have
-    const latestEmail = await Email.findOne({ 
+    const latestEmail = await Email.findOne({
       userId: user._id,
       provider: 'gmail'
     })
@@ -137,7 +137,7 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
       query = `in:inbox after:${afterTimestamp}`
       console.log(`📅 Fetching emails newer than: ${latestEmail.date.toISOString()}`)
     }
-    
+
     // First check if there are any new emails
     const checkResponse = await gmail.users.messages.list({
       userId: 'me',
@@ -146,7 +146,7 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
     })
 
     const hasNewEmails = (checkResponse.data.messages || []).length > 0
-    
+
     // If no new emails, return early without syncing
     if (!hasNewEmails) {
       return res.json({
@@ -157,7 +157,7 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
         message: 'No new emails to sync'
       })
     }
-    
+
     // Get emails (limited to 200 for quick sync)
     const response = await gmail.users.messages.list({
       userId: 'me',
@@ -193,9 +193,9 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
         }
 
         // Check if email already exists
-        const existingEmail = await Email.findOne({ 
+        const existingEmail = await Email.findOne({
           gmailId: message.id,
-          userId: user._id 
+          userId: user._id
         })
 
         if (existingEmail) {
@@ -245,12 +245,12 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
           emailData,
           { upsert: true, new: true }
         )
-        
+
         // Classify the email with rule-based classification (includes labels)
         const classification = await classifyEmail(
-          subject, 
-          snippet, 
-          body, 
+          subject,
+          snippet,
+          body,
           user._id.toString(),
           {
             emailId: result._id.toString(),
@@ -278,7 +278,7 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
           classifiedAt: new Date()
         }
         await result.save()
-        
+
         // Check if this was a new email (not existing before)
         if (!existingEmail) {
           newEmailCount++
@@ -293,9 +293,9 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
             console.error('Error sending new email notification:', error)
           })
         }
-        
+
         syncedCount++
-        
+
         // Send progress update every 10 emails or at milestones
         const progress = Math.round(((i + 1) / totalMessages) * 100)
         if (syncedCount % 10 === 0 || progress % 25 === 0 || i === messages.length - 1) {
@@ -312,7 +312,7 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
               newEmails: newEmailCount
             }
           })
-          
+
           // Clear cache periodically during sync for fresh stats
           if (syncedCount % 20 === 0) {
             clearAnalyticsCache(req.user._id.toString())
@@ -330,7 +330,7 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
     if (newEmailCount > 0) {
       clearAnalyticsCache(req.user._id.toString())
       console.log(`🗑️ Cleared analytics cache after sync (${newEmailCount} new emails)`)
-      
+
       // Send WebSocket event to trigger immediate stats refresh
       sendUpdateToUser(req.user._id.toString(), {
         type: 'stats_updated',
@@ -344,12 +344,12 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
     }
 
     // Send sync completion notification with final status
-    const syncMessage = newEmailCount > 0 
+    const syncMessage = newEmailCount > 0
       ? `Found ${newEmailCount} new emails! Synced ${syncedCount} total.`
-      : messages.length > 0 
+      : messages.length > 0
         ? `No new emails found (checked ${messages.length} recent emails)`
         : 'No new emails in your inbox'
-    
+
     // Send final sync status update
     sendUpdateToUser(req.user._id.toString(), {
       type: 'sync_status',
@@ -363,7 +363,7 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
         newEmails: newEmailCount
       }
     })
-    
+
     notificationService.sendSyncStatusNotification(req.user._id.toString(), {
       status: 'completed',
       message: syncMessage,
@@ -397,12 +397,12 @@ router.post('/gmail/sync', protect, asyncHandler(async (req, res) => {
 router.post('/gmail/sync-all', protect, asyncHandler(async (req, res) => {
   try {
     console.log('SYNC_ALL_START:', req.user._id)
-    
+
     const { fullSync } = await import('../services/gmailSyncService.js')
     const result = await fullSync(req.user)
-    
+
     console.log('SYNC_ALL_SUCCESS:', result)
-    
+
     // Send notification about full sync completion
     notificationService.sendSyncStatusNotification(req.user._id.toString(), {
       status: 'completed',
@@ -410,25 +410,25 @@ router.post('/gmail/sync-all', protect, asyncHandler(async (req, res) => {
       timestamp: new Date().toISOString(),
       count: result.syncedCount || 0
     })
-    
-    return res.json({ 
-      success: true, 
-      provider: 'gmail', 
-      ...result 
+
+    return res.json({
+      success: true,
+      provider: 'gmail',
+      ...result
     })
   } catch (err) {
     console.error('SYNC_ALL_ERROR:', err?.message)
-    
+
     // Send notification about sync failure
     notificationService.sendSyncStatusNotification(req.user._id.toString(), {
       status: 'failed',
       message: `Full sync failed: ${err?.message || 'Unknown error'}`,
       timestamp: new Date().toISOString()
     })
-    
-    return res.status(400).json({ 
-      success: false, 
-      message: err?.message || 'Sync failed' 
+
+    return res.status(400).json({
+      success: false,
+      message: err?.message || 'Sync failed'
     })
   }
 }))
@@ -464,7 +464,7 @@ router.post('/gmail/full-sync', protect, asyncHandler(async (req, res) => {
     } catch (error) {
       console.error('⚠️ Could not get email estimate:', error.message)
       // Fallback: use current stats if available
-      const currentCount = await Email.countDocuments({ 
+      const currentCount = await Email.countDocuments({
         userId: user._id,
         provider: 'gmail',
         isDeleted: false
@@ -479,7 +479,7 @@ router.post('/gmail/full-sync', protect, asyncHandler(async (req, res) => {
     fullHistoricalSync(user, {
       onProgress: (progress) => {
         console.log(`📊 Full sync progress: ${progress.totalFetched} fetched, ${progress.synced} synced, ${progress.classified} classified`)
-        
+
         // Send WebSocket notification
         notificationService.sendSyncStatusNotification(req.user._id.toString(), {
           status: 'in_progress',
@@ -490,7 +490,7 @@ router.post('/gmail/full-sync', protect, asyncHandler(async (req, res) => {
       }
     }).then(result => {
       console.log('✅ Full sync complete:', result)
-      
+
       // Send completion notification
       notificationService.sendSyncStatusNotification(req.user._id.toString(), {
         status: 'completed',
@@ -500,7 +500,7 @@ router.post('/gmail/full-sync', protect, asyncHandler(async (req, res) => {
       })
     }).catch(error => {
       console.error('❌ Full sync error:', error)
-      
+
       // Send error notification
       notificationService.sendSyncStatusNotification(req.user._id.toString(), {
         status: 'failed',
@@ -542,12 +542,12 @@ router.get('/', protect, asyncHandler(async (req, res) => {
   try {
     // Update user activity for smart syncing
     updateUserActivity(req.user._id)
-    
-    const { 
-      page = 1, 
-      limit = 25, 
-      category, 
-      provider = 'gmail', 
+
+    const {
+      page = 1,
+      limit = 25,
+      category,
+      provider = 'gmail',
       q: search,
       threaded = 'false' // New parameter for thread grouping
     } = req.query
@@ -556,7 +556,7 @@ router.get('/', protect, asyncHandler(async (req, res) => {
 
     // Standard query structure - always exclude deleted emails for consistency with analytics
     // Include emails without provider field (legacy emails) to match analytics
-    let query = { 
+    let query = {
       userId: req.user._id,
       isDeleted: false,  // Exclude deleted emails for consistent counts with analytics
       $or: [
@@ -590,13 +590,13 @@ router.get('/', protect, asyncHandler(async (req, res) => {
       // Escape special regex characters to prevent errors
       const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       const searchTerm = escapeRegex(search.trim())
-      
+
       query.$or = [
         { subject: { $regex: searchTerm, $options: 'i' } },
         { from: { $regex: searchTerm, $options: 'i' } },
         { snippet: { $regex: searchTerm, $options: 'i' } }
       ]
-      
+
       console.log(`🔍 Server search query: "${searchTerm}"`)
     }
 
@@ -608,11 +608,11 @@ router.get('/', protect, asyncHandler(async (req, res) => {
 
     // Always use actual count for consistency with analytics - threading is just for display
     const total = await Email.countDocuments(query)
-    
+
     if (isThreaded) {
       // OPTIMIZED: Use threading but with pagination-friendly approach
       console.log('🧵 Threading enabled - using optimized threading')
-      
+
       // OPTIMIZED: Only fetch enough emails for the current page + some buffer for threading
       // Instead of fetching ALL emails, fetch 3x the limit to ensure we have enough for threads
       const fetchLimit = parseInt(limit) * 3
@@ -626,14 +626,14 @@ router.get('/', protect, asyncHandler(async (req, res) => {
 
       // Import thread grouping service
       const { groupEmailsIntoThreads } = await import('../services/threadGroupingService.js')
-      
+
       // Group emails into threads by threadId + date
       const threads = groupEmailsIntoThreads(emails)
-      
+
       // Apply pagination to threaded results
       // Use actual total count (not estimated) for consistency with analytics
       items = threads.slice(0, parseInt(limit)) // Take only the requested number of threads
-      
+
       console.log(`✅ Grouped ${emails.length} emails into ${threads.length} threads, returning ${items.length} (total: ${total})`)
     } else {
       // OPTIMIZED: Standard pagination with lean queries
@@ -644,7 +644,7 @@ router.get('/', protect, asyncHandler(async (req, res) => {
         .select(selectFields)
         .hint({ userId: 1, category: 1, date: -1 })
         .lean()
-      
+
       console.log(`✅ Found ${items.length} emails (total: ${total})`)
     }
 
@@ -730,13 +730,13 @@ router.get('/thread/:containerId', protect, asyncHandler(async (req, res) => {
   try {
     const { containerId } = req.params
     console.log(`📧 Thread request for container: ${containerId}`)
-    
+
     const { parseThreadContainerId, getThreadMessages } = await import('../services/threadGroupingService.js')
-    
+
     // Parse the container ID to get threadId and dateKey
     const parsed = parseThreadContainerId(containerId)
     console.log(`📧 Parsed result:`, parsed)
-    
+
     if (!parsed) {
       console.log(`📧 Not a thread container ID, trying as single email`)
       // If not a valid container ID, try to fetch as single email
@@ -744,7 +744,7 @@ router.get('/thread/:containerId', protect, asyncHandler(async (req, res) => {
         _id: containerId,
         userId: req.user._id
       })
-      
+
       if (!email) {
         console.log(`❌ Email not found: ${containerId}`)
         return res.status(404).json({
@@ -752,19 +752,19 @@ router.get('/thread/:containerId', protect, asyncHandler(async (req, res) => {
           message: 'Thread or email not found'
         })
       }
-      
+
       console.log(`✅ Single email found: ${email.subject}`)
       console.log(`   Thread ID: ${email.threadId}`)
-      
+
       // If this email has a threadId, fetch all messages in that thread for the same day
       if (email.threadId) {
         console.log(`📧 Email is part of a thread, fetching all thread messages`)
         const { normalizeDate } = await import('../services/threadGroupingService.js')
         const dateKey = normalizeDate(email.date)
-        
+
         const messages = await getThreadMessages(Email, email.threadId, req.user._id, dateKey)
         console.log(`📧 Found ${messages ? messages.length : 0} messages in thread`)
-        
+
         if (messages && messages.length > 0) {
           return res.json({
             success: true,
@@ -775,7 +775,7 @@ router.get('/thread/:containerId', protect, asyncHandler(async (req, res) => {
           })
         }
       }
-      
+
       // Return single email as array
       return res.json({
         success: true,
@@ -783,14 +783,14 @@ router.get('/thread/:containerId', protect, asyncHandler(async (req, res) => {
         isThread: false
       })
     }
-    
+
     const { threadId, dateKey } = parsed
     console.log(`📧 Fetching thread messages for threadId: ${threadId}, date: ${dateKey}`)
-    
+
     // Fetch all messages in the thread for that day
     const messages = await getThreadMessages(Email, threadId, req.user._id, dateKey)
     console.log(`📧 Found ${messages ? messages.length : 0} messages`)
-    
+
     if (!messages || messages.length === 0) {
       console.log(`❌ No messages found for thread`)
       return res.status(404).json({
@@ -798,7 +798,7 @@ router.get('/thread/:containerId', protect, asyncHandler(async (req, res) => {
         message: 'Thread not found'
       })
     }
-    
+
     console.log(`✅ Returning ${messages.length} thread messages`)
     res.json({
       success: true,
@@ -807,7 +807,7 @@ router.get('/thread/:containerId', protect, asyncHandler(async (req, res) => {
       threadId,
       dateKey
     })
-    
+
   } catch (error) {
     console.error('Get thread messages error:', error)
     console.error('Error stack:', error.stack)
@@ -826,10 +826,10 @@ router.get('/:id', protect, asyncHandler(async (req, res) => {
   try {
     // Update user activity for smart syncing
     updateUserActivity(req.user._id)
-    
-    const email = await Email.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
+
+    const email = await Email.findOne({
+      _id: req.params.id,
+      userId: req.user._id
     })
 
     if (!email) {
@@ -858,9 +858,9 @@ router.get('/:id', protect, asyncHandler(async (req, res) => {
 // @access  Private
 router.get('/:id/attachments/:attachmentId/download', protect, asyncHandler(async (req, res) => {
   try {
-    const email = await Email.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
+    const email = await Email.findOne({
+      _id: req.params.id,
+      userId: req.user._id
     })
 
     if (!email) {
@@ -873,7 +873,7 @@ router.get('/:id/attachments/:attachmentId/download', protect, asyncHandler(asyn
     // Get user for OAuth
     const User = (await import('../models/User.js')).default
     const user = await User.findById(req.user._id)
-    
+
     if (!user.gmailConnected) {
       return res.status(400).json({
         success: false,
@@ -884,7 +884,7 @@ router.get('/:id/attachments/:attachmentId/download', protect, asyncHandler(asyn
     // Download attachment from Gmail
     const { downloadAttachment } = await import('../services/gmailSyncService.js')
     const { getOAuthForUser } = await import('../services/gmailSyncService.js')
-    
+
     const oauth2 = getOAuthForUser(user)
     const attachmentData = await downloadAttachment(oauth2, email.gmailId, req.params.attachmentId)
 
@@ -923,10 +923,10 @@ router.put('/:id/archive', protect, asyncHandler(async (req, res) => {
     console.log(`   Email ID: ${req.params.id}`)
     console.log(`   User ID: ${req.user._id}`)
     console.log(`${'='.repeat(60)}\n`)
-    
-    const email = await Email.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
+
+    const email = await Email.findOne({
+      _id: req.params.id,
+      userId: req.user._id
     })
 
     if (!email) {
@@ -950,20 +950,20 @@ router.put('/:id/archive', protect, asyncHandler(async (req, res) => {
       try {
         console.log(`\n🔄 Attempting to archive email in Gmail...`)
         console.log(`   Gmail ID: ${email.gmailId}`)
-        
+
         const User = (await import('../models/User.js')).default
         const user = await User.findById(req.user._id)
-        
+
         if (!user.gmailConnected) {
           console.log('   ⚠️ Gmail not connected for user')
         } else if (!user.gmailAccessToken) {
           console.log('   ⚠️ No Gmail access token available')
         } else {
           console.log('   ✓ User has Gmail connected with access token')
-          
+
           const { getOAuthForUser } = await import('../services/gmailSyncService.js')
           const oauth2 = getOAuthForUser(user)
-          
+
           // Set up token refresh handler
           oauth2.on('tokens', async (tokens) => {
             console.log('   🔄 OAuth token refreshed automatically')
@@ -978,7 +978,7 @@ router.put('/:id/archive', protect, asyncHandler(async (req, res) => {
             }
             await user.save()
           })
-          
+
           const gmail = google.gmail({ version: 'v1', auth: oauth2 })
 
           // First check current email state
@@ -990,7 +990,7 @@ router.put('/:id/archive', protect, asyncHandler(async (req, res) => {
           })
           const currentLabels = currentState.data.labelIds || []
           console.log('   📧 Current labels:', currentLabels.join(', '))
-          
+
           // Check if email has INBOX label
           if (!currentLabels.includes('INBOX')) {
             console.log('   ⚠️ Email does not have INBOX label - already archived in Gmail')
@@ -1006,14 +1006,14 @@ router.put('/:id/archive', protect, asyncHandler(async (req, res) => {
                 removeLabelIds: ['INBOX']
               }
             })
-            
+
             const newLabels = modifyResponse.data.labelIds || []
             console.log('   ✅ Gmail API modify response:', {
               id: modifyResponse.data.id,
               labelIds: newLabels.join(', '),
               inboxRemoved: !newLabels.includes('INBOX')
             })
-            
+
             // Verify the change by fetching again
             console.log('   🔍 Verifying change in Gmail...')
             const verifyState = await gmail.users.messages.get({
@@ -1023,14 +1023,14 @@ router.put('/:id/archive', protect, asyncHandler(async (req, res) => {
             })
             const finalLabels = verifyState.data.labelIds || []
             console.log('   📧 Final labels after modification:', finalLabels.join(', '))
-            
+
             if (finalLabels.includes('INBOX')) {
               console.log('   ⚠️ WARNING: INBOX label still present after modification!')
               console.log('   Gmail may not have processed the change yet')
             } else {
               console.log('   ✅ VERIFIED: INBOX label successfully removed from Gmail')
             }
-            
+
             gmailSyncSuccess = true
             console.log(`✅ Gmail archive synced successfully for email: ${email.subject}`)
           }
@@ -1117,9 +1117,9 @@ router.put('/:id/archive', protect, asyncHandler(async (req, res) => {
 // @access  Private
 router.put('/:id/unarchive', protect, asyncHandler(async (req, res) => {
   try {
-    const email = await Email.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
+    const email = await Email.findOne({
+      _id: req.params.id,
+      userId: req.user._id
     })
 
     if (!email) {
@@ -1135,20 +1135,20 @@ router.put('/:id/unarchive', protect, asyncHandler(async (req, res) => {
       try {
         console.log(`🔄 Attempting to unarchive email in Gmail: ${email.subject}`)
         console.log(`   Gmail ID: ${email.gmailId}`)
-        
+
         const User = (await import('../models/User.js')).default
         const user = await User.findById(req.user._id)
-        
+
         if (!user.gmailConnected) {
           console.log('   ⚠️ Gmail not connected for user')
         } else if (!user.gmailAccessToken) {
           console.log('   ⚠️ No Gmail access token available')
         } else {
           console.log('   ✓ User has Gmail connected with access token')
-          
+
           const { getOAuthForUser } = await import('../services/gmailSyncService.js')
           const oauth2 = getOAuthForUser(user)
-          
+
           // Set up token refresh handler
           oauth2.on('tokens', async (tokens) => {
             console.log('   🔄 OAuth token refreshed automatically')
@@ -1163,7 +1163,7 @@ router.put('/:id/unarchive', protect, asyncHandler(async (req, res) => {
             }
             await user.save()
           })
-          
+
           const gmail = google.gmail({ version: 'v1', auth: oauth2 })
 
           // First check current email state
@@ -1175,7 +1175,7 @@ router.put('/:id/unarchive', protect, asyncHandler(async (req, res) => {
           })
           const currentLabels = currentState.data.labelIds || []
           console.log('   📧 Current labels:', currentLabels.join(', '))
-          
+
           // Check if email already has INBOX label
           if (currentLabels.includes('INBOX')) {
             console.log('   ⚠️ Email already has INBOX label - not archived in Gmail')
@@ -1191,14 +1191,14 @@ router.put('/:id/unarchive', protect, asyncHandler(async (req, res) => {
                 addLabelIds: ['INBOX']
               }
             })
-            
+
             const newLabels = modifyResponse.data.labelIds || []
             console.log('   ✅ Gmail API modify response:', {
               id: modifyResponse.data.id,
               labelIds: newLabels.join(', '),
               inboxAdded: newLabels.includes('INBOX')
             })
-            
+
             // Verify the change by fetching again
             console.log('   🔍 Verifying change in Gmail...')
             const verifyState = await gmail.users.messages.get({
@@ -1208,14 +1208,14 @@ router.put('/:id/unarchive', protect, asyncHandler(async (req, res) => {
             })
             const finalLabels = verifyState.data.labelIds || []
             console.log('   📧 Final labels after modification:', finalLabels.join(', '))
-            
+
             if (!finalLabels.includes('INBOX')) {
               console.log('   ⚠️ WARNING: INBOX label not present after modification!')
               console.log('   Gmail may not have processed the change yet')
             } else {
               console.log('   ✅ VERIFIED: INBOX label successfully added to Gmail')
             }
-            
+
             gmailSyncSuccess = true
             console.log(`✅ Gmail unarchive synced successfully for email: ${email.subject}`)
           }
@@ -1302,9 +1302,9 @@ router.post('/:id/reply', protect, asyncHandler(async (req, res) => {
     }
 
     // Find the email to reply to
-    const email = await Email.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
+    const email = await Email.findOne({
+      _id: req.params.id,
+      userId: req.user._id
     })
 
     if (!email) {
@@ -1341,7 +1341,7 @@ router.post('/:id/reply', protect, asyncHandler(async (req, res) => {
     // Parse Message-ID from email headers if available
     // Message-ID is typically stored in the email object, but may need to be fetched
     const messageId = email.messageId || email.gmailId
-    
+
     // Prepare reply data
     const replyData = {
       to: extractEmail(email.from),
@@ -1383,7 +1383,7 @@ router.post('/:id/reply', protect, asyncHandler(async (req, res) => {
         // Get email body
         let emailBody = ''
         let emailHtml = ''
-        
+
         const getBody = (payload) => {
           if (payload.body && payload.body.data) {
             const decoded = Buffer.from(payload.body.data, 'base64').toString('utf-8')
@@ -1400,7 +1400,7 @@ router.post('/:id/reply', protect, asyncHandler(async (req, res) => {
             }
           }
         }
-        
+
         getBody(sentMessage.data.payload)
 
         // Create email document for the sent reply
@@ -1469,9 +1469,9 @@ router.post('/:id/reply', protect, asyncHandler(async (req, res) => {
 // @access  Private
 router.delete('/:id', protect, asyncHandler(async (req, res) => {
   try {
-    const email = await Email.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
+    const email = await Email.findOne({
+      _id: req.params.id,
+      userId: req.user._id
     })
 
     if (!email) {
@@ -1489,7 +1489,7 @@ router.delete('/:id', protect, asyncHandler(async (req, res) => {
       try {
         const User = (await import('../models/User.js')).default
         const user = await User.findById(req.user._id)
-        
+
         if (user.gmailConnected) {
           const { getOAuthForUser } = await import('../services/gmailSyncService.js')
           const oauth2 = getOAuthForUser(user)
@@ -1529,8 +1529,8 @@ router.delete('/:id', protect, asyncHandler(async (req, res) => {
 
     res.json({
       success: true,
-      message: deleteFromGmail 
-        ? 'Email deleted from both Sortify and Gmail' 
+      message: deleteFromGmail
+        ? 'Email deleted from both Sortify and Gmail'
         : 'Email deleted from Sortify only'
     })
 
@@ -1705,9 +1705,9 @@ router.post('/export/csv', protect, asyncHandler(async (req, res) => {
 // @access  Private
 router.post('/classify/:id', protect, asyncHandler(async (req, res) => {
   try {
-    const email = await Email.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
+    const email = await Email.findOne({
+      _id: req.params.id,
+      userId: req.user._id
     })
 
     if (!email) {
@@ -1769,7 +1769,7 @@ router.post('/classify/:id', protect, asyncHandler(async (req, res) => {
 router.get('/labels', protect, asyncHandler(async (req, res) => {
   try {
     const categories = await Email.distinct('category', { userId: req.user._id })
-    
+
     res.json({
       success: true,
       labels: categories
@@ -1911,7 +1911,7 @@ router.put('/:id/category', protect, asyncHandler(async (req, res) => {
 
     const email = await Email.findOneAndUpdate(
       { _id: id, userId: req.user._id },
-      { 
+      {
         category,
         classification: {
           label: category,
@@ -1975,12 +1975,12 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
         const User = (await import('../models/User.js')).default
         const user = await User.findById(req.user._id)
         let gmailSyncCount = 0
-        
+
         if (user.gmailConnected && user.gmailAccessToken) {
           const { getOAuthForUser } = await import('../services/gmailSyncService.js')
           const oauth2 = getOAuthForUser(user)
           const gmail = google.gmail({ version: 'v1', auth: oauth2 })
-          
+
           // Get all emails to archive
           const emailsToArchive = await Email.find({
             _id: { $in: emailIds },
@@ -1988,9 +1988,9 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
             provider: 'gmail',
             gmailId: { $exists: true, $ne: null }
           })
-          
+
           console.log(`\n📦 Bulk archiving ${emailsToArchive.length} emails in Gmail...`)
-          
+
           // Archive each email in Gmail
           for (const email of emailsToArchive) {
             try {
@@ -2008,10 +2008,10 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
               // Continue with others even if one fails
             }
           }
-          
+
           console.log(`✅ Gmail sync complete: ${gmailSyncCount}/${emailsToArchive.length} synced`)
         }
-        
+
         updateData = { isArchived: true, archivedAt: new Date() }
         message = `Emails archived successfully${gmailSyncCount > 0 ? ` (${gmailSyncCount} synced with Gmail)` : ''}`
         break
@@ -2020,12 +2020,12 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
         const User2 = (await import('../models/User.js')).default
         const user2 = await User2.findById(req.user._id)
         let gmailSyncCount2 = 0
-        
+
         if (user2.gmailConnected && user2.gmailAccessToken) {
           const { getOAuthForUser } = await import('../services/gmailSyncService.js')
           const oauth2 = getOAuthForUser(user2)
           const gmail = google.gmail({ version: 'v1', auth: oauth2 })
-          
+
           // Get all emails to unarchive
           const emailsToUnarchive = await Email.find({
             _id: { $in: emailIds },
@@ -2033,9 +2033,9 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
             provider: 'gmail',
             gmailId: { $exists: true, $ne: null }
           })
-          
+
           console.log(`\n📥 Bulk unarchiving ${emailsToUnarchive.length} emails in Gmail...`)
-          
+
           // Unarchive each email in Gmail
           for (const email of emailsToUnarchive) {
             try {
@@ -2053,17 +2053,17 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
               // Continue with others even if one fails
             }
           }
-          
+
           console.log(`✅ Gmail sync complete: ${gmailSyncCount2}/${emailsToUnarchive.length} synced`)
         }
-        
+
         updateData = { isArchived: false, archivedAt: null }
         message = `Emails unarchived successfully${gmailSyncCount2 > 0 ? ` (${gmailSyncCount2} synced with Gmail)` : ''}`
         break
       case 'delete':
         const deleteFromGmail = data?.deleteFromGmail === true
         let gmailDeleteCount = 0
-        
+
         // If user wants to delete from Gmail, do that first
         if (deleteFromGmail) {
           const emailsToDelete = await Email.find({
@@ -2072,18 +2072,18 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
             provider: 'gmail',
             gmailId: { $exists: true }
           })
-          
+
           if (emailsToDelete.length > 0) {
             const User = (await import('../models/User.js')).default
             const user = await User.findById(req.user._id)
-            
+
             if (user?.gmailConnected) {
               const { getOAuthForUser } = await import('../services/gmailSyncService.js')
               const oauth2 = getOAuthForUser(user)
               const gmail = google.gmail({ version: 'v1', auth: oauth2 })
-              
+
               console.log(`🗑️  Bulk deleting ${emailsToDelete.length} emails from Gmail...`)
-              
+
               for (const email of emailsToDelete) {
                 try {
                   await gmail.users.messages.trash({
@@ -2097,18 +2097,18 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
                   // Continue with others even if one fails
                 }
               }
-              
+
               console.log(`✅ Gmail deletion complete: ${gmailDeleteCount}/${emailsToDelete.length} deleted`)
             }
           }
         }
-        
+
         // Delete from local database
         await Email.deleteMany({
           _id: { $in: emailIds },
           userId: req.user._id
         })
-        
+
         // Send notification for bulk delete
         notificationService.sendBulkOperationNotification(req.user._id.toString(), {
           operation: 'delete',
@@ -2116,10 +2116,10 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
           success: true,
           message: `${emailIds.length} emails deleted successfully${deleteFromGmail ? ` (${gmailDeleteCount} from Gmail)` : ' (from Sortify only)'}`
         })
-        
+
         return res.json({
           success: true,
-          message: deleteFromGmail 
+          message: deleteFromGmail
             ? `Emails deleted from Sortify${gmailDeleteCount > 0 ? ` and ${gmailDeleteCount} from Gmail` : ''}`
             : 'Emails deleted from Sortify only',
           count: emailIds.length,
@@ -2132,7 +2132,7 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
             message: 'Category is required for categorize operation'
           })
         }
-        updateData = { 
+        updateData = {
           category: data.category,
           classification: {
             label: data.category,
@@ -2190,7 +2190,7 @@ router.post('/bulk', protect, asyncHandler(async (req, res) => {
 router.post('/realtime/start', protect, asyncHandler(async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-    
+
     if (!user.gmailConnected) {
       return res.status(400).json({
         success: false,
@@ -2199,7 +2199,7 @@ router.post('/realtime/start', protect, asyncHandler(async (req, res) => {
     }
 
     const started = await startRealtimeSync(user)
-    
+
     if (started) {
       // Send notification about sync start
       notificationService.sendConnectionNotification(req.user._id.toString(), {
@@ -2207,7 +2207,7 @@ router.post('/realtime/start', protect, asyncHandler(async (req, res) => {
         provider: 'gmail',
         message: 'Real-time email sync has been started'
       })
-      
+
       res.json({
         success: true,
         message: 'Real-time sync started successfully'
@@ -2219,7 +2219,7 @@ router.post('/realtime/start', protect, asyncHandler(async (req, res) => {
         provider: 'gmail',
         message: 'Failed to start real-time email sync'
       })
-      
+
       res.status(500).json({
         success: false,
         message: 'Failed to start real-time sync'
@@ -2241,7 +2241,7 @@ router.post('/realtime/start', protect, asyncHandler(async (req, res) => {
 router.post('/realtime/stop', protect, asyncHandler(async (req, res) => {
   try {
     stopRealtimeSync(req.user._id)
-    
+
     res.json({
       success: true,
       message: 'Real-time sync stopped successfully'
@@ -2262,7 +2262,7 @@ router.post('/realtime/stop', protect, asyncHandler(async (req, res) => {
 router.get('/realtime/status', protect, asyncHandler(async (req, res) => {
   try {
     const isActive = isSyncActive(req.user._id)
-    
+
     res.json({
       success: true,
       isActive,
@@ -2305,38 +2305,38 @@ router.get('/:id/full-content', protect, asyncHandler(async (req, res) => {
   try {
     const emailId = req.params.id
     console.log(`📧 Full-content request for: ${emailId}`)
-    
+
     const user = await User.findById(req.user._id)
 
     // Check if this is a thread container ID
     const { parseThreadContainerId, getThreadMessages } = await import('../services/threadGroupingService.js')
     const parsed = parseThreadContainerId(emailId)
-    
+
     let email
-    
+
     if (parsed) {
       // It's a thread container ID - get the first/only message
       console.log(`📧 Thread container ID detected, fetching messages`)
       const { threadId, dateKey } = parsed
       const messages = await getThreadMessages(Email, threadId, req.user._id, dateKey)
-      
+
       if (!messages || messages.length === 0) {
         return res.status(404).json({
           success: false,
           message: 'Email not found'
         })
       }
-      
+
       // Use the first message (or latest message if multiple)
       email = messages[messages.length - 1] // Latest message
       console.log(`📧 Using message from thread: ${email._id}`)
     } else {
       // Regular email ID
-      email = await Email.findOne({ 
-        _id: emailId, 
-        userId: req.user._id 
+      email = await Email.findOne({
+        _id: emailId,
+        userId: req.user._id
       })
-      
+
       if (!email) {
         return res.status(404).json({
           success: false,
@@ -2441,7 +2441,7 @@ router.get('/:id/full-content', protect, asyncHandler(async (req, res) => {
         isFullContentLoaded: !!email.html || !!email.body,
         fullContentLoadedAt: email.fullContentLoadedAt
       }
-      
+
       return res.json({
         success: true,
         email: emailContent,
@@ -2455,12 +2455,12 @@ router.get('/:id/full-content', protect, asyncHandler(async (req, res) => {
       process.env.GOOGLE_CLIENT_SECRET,
       process.env.GOOGLE_REDIRECT_URI
     )
-    
+
     oauth2Client.setCredentials({
       access_token: user.gmailAccessToken,
       refresh_token: user.gmailRefreshToken
     })
-    
+
     // Set up token refresh handler
     oauth2Client.on('tokens', async (tokens) => {
       console.log('🔄 Gmail tokens refreshed automatically')
@@ -2469,12 +2469,12 @@ router.get('/:id/full-content', protect, asyncHandler(async (req, res) => {
         await user.save()
       }
     })
-    
+
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
-    
+
     try {
       console.log(`📧 Fetching email from Gmail API: ${email.gmailId}`)
-      
+
       const messageData = await gmail.users.messages.get({
         userId: 'me',
         id: email.gmailId,
@@ -2539,7 +2539,7 @@ router.get('/:id/full-content', protect, asyncHandler(async (req, res) => {
       email.isFullContentLoaded = true
       email.fullContentLoadedAt = new Date()
       email.lastAccessedAt = new Date()
-      
+
       if (canPersistEmail) {
         await email.save()
       } else {
@@ -2583,7 +2583,7 @@ router.get('/:id/full-content', protect, asyncHandler(async (req, res) => {
         errors: gmailError.errors,
         stack: gmailError.stack
       })
-      
+
       // Handle specific error cases
       if (gmailError.code === 401 || gmailError.message?.includes('invalid_grant')) {
         return res.status(401).json({
@@ -2592,7 +2592,7 @@ router.get('/:id/full-content', protect, asyncHandler(async (req, res) => {
           error: 'TOKEN_EXPIRED'
         })
       }
-      
+
       if (gmailError.code === 404 || gmailError.message?.includes('not found')) {
         return res.status(404).json({
           success: false,
@@ -2600,7 +2600,7 @@ router.get('/:id/full-content', protect, asyncHandler(async (req, res) => {
           error: 'EMAIL_NOT_FOUND'
         })
       }
-      
+
       if (gmailError.code === 403) {
         return res.status(403).json({
           success: false,
@@ -2608,7 +2608,7 @@ router.get('/:id/full-content', protect, asyncHandler(async (req, res) => {
           error: 'INSUFFICIENT_PERMISSIONS'
         })
       }
-      
+
       return res.status(500).json({
         success: false,
         message: `Failed to fetch email content from Gmail: ${gmailError.message}`,
@@ -2632,17 +2632,17 @@ router.post('/reclassify-all-rule-based', protect, asyncHandler(async (req, res)
   try {
     const userId = req.user._id.toString()
     const { preserveManual = true, batchSize = 100 } = req.body
-    
+
     console.log(`🔄 Starting rule-based reclassification for user: ${userId}`)
-    
+
     // Get time estimate before starting
     const timeEstimate = await estimateReclassificationTime(userId)
-    
+
     // Start reclassification asynchronously
     reclassifyAllEmailsWithRuleBased(userId, { preserveManual, batchSize })
       .then(result => {
         console.log(`✅ Rule-based reclassification completed for user ${userId}:`, result)
-        
+
         notificationService.sendClassificationNotification(userId, {
           emailId: 'system',
           category: 'system',
@@ -2652,7 +2652,7 @@ router.post('/reclassify-all-rule-based', protect, asyncHandler(async (req, res)
       })
       .catch(error => {
         console.error(`❌ Rule-based reclassification failed for user ${userId}:`, error)
-        
+
         notificationService.sendClassificationNotification(userId, {
           emailId: 'system',
           category: 'system',
@@ -2660,7 +2660,7 @@ router.post('/reclassify-all-rule-based', protect, asyncHandler(async (req, res)
           message: `Reclassification failed: ${error.message}`
         })
       })
-    
+
     // Return immediately with time estimate
     res.json({
       success: true,
@@ -2668,7 +2668,7 @@ router.post('/reclassify-all-rule-based', protect, asyncHandler(async (req, res)
       userId: userId,
       estimatedTime: timeEstimate
     })
-    
+
   } catch (error) {
     console.error('Rule-based reclassification trigger error:', error)
     res.status(500).json({
@@ -2685,14 +2685,14 @@ router.post('/reclassify-all-rule-based', protect, asyncHandler(async (req, res)
 router.post('/reclassify-all-users', protect, asyncHandler(async (req, res) => {
   try {
     const { preserveManual = true, batchSize = 100 } = req.body
-    
+
     console.log(`🔄 Starting rule-based reclassification for ALL users`)
-    
+
     // Start reclassification asynchronously
     reclassifyAllEmailsWithRuleBased(null, { preserveManual, batchSize })
       .then(result => {
         console.log(`✅ Rule-based reclassification completed for all users:`, result)
-        
+
         // Send notification to requesting user
         notificationService.sendClassificationNotification(req.user._id.toString(), {
           emailId: 'system',
@@ -2703,7 +2703,7 @@ router.post('/reclassify-all-users', protect, asyncHandler(async (req, res) => {
       })
       .catch(error => {
         console.error(`❌ Rule-based reclassification failed for all users:`, error)
-        
+
         notificationService.sendClassificationNotification(req.user._id.toString(), {
           emailId: 'system',
           category: 'system',
@@ -2711,14 +2711,14 @@ router.post('/reclassify-all-users', protect, asyncHandler(async (req, res) => {
           message: `Reclassification failed: ${error.message}`
         })
       })
-    
+
     // Return immediately
     res.json({
       success: true,
       message: 'Rule-based reclassification started for all users. This may take a long time.',
       allUsers: true
     })
-    
+
   } catch (error) {
     console.error('Rule-based reclassification trigger error:', error)
     res.status(500).json({
@@ -2736,14 +2736,14 @@ router.post('/reclassify-user/:userId', protect, asyncHandler(async (req, res) =
   try {
     const targetUserId = req.params.userId
     const { preserveManual = true, batchSize = 100 } = req.body
-    
+
     console.log(`🔄 Starting rule-based reclassification for user: ${targetUserId}`)
-    
+
     // Start reclassification asynchronously
     reclassifyAllEmailsWithRuleBased(targetUserId, { preserveManual, batchSize })
       .then(result => {
         console.log(`✅ Rule-based reclassification completed for user ${targetUserId}:`, result)
-        
+
         // Send notification to requesting user
         notificationService.sendClassificationNotification(req.user._id.toString(), {
           emailId: 'system',
@@ -2754,7 +2754,7 @@ router.post('/reclassify-user/:userId', protect, asyncHandler(async (req, res) =
       })
       .catch(error => {
         console.error(`❌ Rule-based reclassification failed for user ${targetUserId}:`, error)
-        
+
         notificationService.sendClassificationNotification(req.user._id.toString(), {
           emailId: 'system',
           category: 'system',
@@ -2762,14 +2762,14 @@ router.post('/reclassify-user/:userId', protect, asyncHandler(async (req, res) =
           message: `Reclassification failed: ${error.message}`
         })
       })
-    
+
     // Return immediately
     res.json({
       success: true,
       message: 'Rule-based reclassification started for specified user.',
       userId: targetUserId
     })
-    
+
   } catch (error) {
     console.error('Rule-based reclassification trigger error:', error)
     res.status(500).json({
@@ -2786,7 +2786,7 @@ router.post('/reclassify-user/:userId', protect, asyncHandler(async (req, res) =
 router.post('/reclassify-all', protect, asyncHandler(async (req, res) => {
   try {
     const userId = req.user._id.toString()
-    
+
     console.log(`🔄 Starting two-phase reclassification for user: ${userId}`)
 
     // Import the two-phase orchestrator
@@ -2799,11 +2799,11 @@ router.post('/reclassify-all', protect, asyncHandler(async (req, res) => {
     reclassifyAllEmailsTwoPhase(userId)
       .then(result => {
         console.log(`✅ Two-phase reclassification completed for user ${userId}:`, result)
-        
+
         // Clear caches one final time
         clearAnalyticsCache(userId)
         clearCategoryCache()
-        
+
         // Send notification about Phase 1 and Phase 2 completion
         notificationService.sendClassificationNotification(userId, {
           emailId: 'system',
@@ -2814,7 +2814,7 @@ router.post('/reclassify-all', protect, asyncHandler(async (req, res) => {
       })
       .catch(error => {
         console.error(`❌ Two-phase reclassification failed for user ${userId}:`, error)
-        
+
         // Send error notification
         notificationService.sendClassificationNotification(userId, {
           emailId: 'system',
@@ -2848,16 +2848,16 @@ router.get('/reclassification-status/:jobId', protect, asyncHandler(async (req, 
   try {
     const { jobId } = req.params
     const userId = req.user._id.toString()
-    
+
     const job = await getJobStatus(jobId)
-    
+
     if (!job) {
       return res.status(404).json({
         success: false,
         message: 'Job not found'
       })
     }
-    
+
     // Verify job belongs to user
     if (job.userId.toString() !== userId) {
       return res.status(403).json({
@@ -2865,7 +2865,7 @@ router.get('/reclassification-status/:jobId', protect, asyncHandler(async (req, 
         message: 'Access denied'
       })
     }
-    
+
     res.json({
       success: true,
       job: {
@@ -2882,7 +2882,7 @@ router.get('/reclassification-status/:jobId', protect, asyncHandler(async (req, 
         errorMessage: job.errorMessage
       }
     })
-    
+
   } catch (error) {
     console.error('Get reclassification status error:', error)
     res.status(500).json({
@@ -2898,37 +2898,36 @@ router.get('/reclassification-status/:jobId', protect, asyncHandler(async (req, 
 router.post('/reclassify-all-script', protect, asyncHandler(async (req, res) => {
   try {
     const userId = req.user._id.toString()
-    
+
     console.log(`🔄 Starting script-based reclassification for user: ${userId}`)
-    
+
     // Get the server directory (go up from src/routes to server root)
     const serverDir = path.join(__dirname, '../..')
     const scriptPath = path.join(serverDir, 'src', 'scripts', 'triggerReclassificationNow.js')
-    
+
     console.log(`📝 Executing script: ${scriptPath}`)
     console.log(`📁 Working directory: ${serverDir}`)
-    
-    // Spawn the script as a child process
-    const childProcess = spawn('node', [scriptPath, userId], {
-      cwd: serverDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false
-    })
-    
+
+    // Use process service to manage lifecycle
+    const { startProcess } = await import('../services/reclassificationProcessService.js')
+
+    // Spawn the script via service
+    const childProcess = startProcess(userId, scriptPath, [userId], serverDir)
+
     // Log script output
     childProcess.stdout.on('data', (data) => {
       console.log(`[Reclassify Script] ${data.toString()}`)
     })
-    
+
     childProcess.stderr.on('data', (data) => {
       console.error(`[Reclassify Script Error] ${data.toString()}`)
     })
-    
+
     // Handle process completion
     childProcess.on('close', (code) => {
       if (code === 0) {
         console.log(`✅ Reclassification script completed successfully for user ${userId}`)
-        
+
         // Send success notification
         notificationService.sendClassificationNotification(userId, {
           emailId: 'system',
@@ -2938,7 +2937,7 @@ router.post('/reclassify-all-script', protect, asyncHandler(async (req, res) => 
         })
       } else {
         console.error(`❌ Reclassification script exited with code ${code} for user ${userId}`)
-        
+
         // Send error notification
         notificationService.sendClassificationNotification(userId, {
           emailId: 'system',
@@ -2948,11 +2947,11 @@ router.post('/reclassify-all-script', protect, asyncHandler(async (req, res) => 
         })
       }
     })
-    
+
     // Handle process errors
     childProcess.on('error', (error) => {
       console.error(`❌ Failed to spawn reclassification script for user ${userId}:`, error)
-      
+
       notificationService.sendClassificationNotification(userId, {
         emailId: 'system',
         category: 'system',
@@ -2960,14 +2959,14 @@ router.post('/reclassify-all-script', protect, asyncHandler(async (req, res) => 
         message: `Failed to start reclassification script: ${error.message}`
       })
     })
-    
+
     // Return immediately (non-blocking)
     res.json({
       success: true,
       message: 'Reclassification script started. This will reclassify all emails using the latest keywords.',
       userId: userId
     })
-    
+
   } catch (error) {
     console.error('Reclassification script trigger error:', error)
     res.status(500).json({

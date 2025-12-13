@@ -71,6 +71,7 @@ sortify-app
 # Machine Learning Models and Artifacts
 artifacts/
 models/
+!server/src/models/
 *.pt
 *.pth
 *.h5

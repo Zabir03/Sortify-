@@ -26,7 +26,7 @@ const AnalyticsDashboard = () => {
       } else {
         setLoading(true)
       }
-      
+
       const [categories, accuracy, misclassificationsData] = await Promise.all([
         analyticsService.getCategoryCounts(),
         analyticsService.getClassificationAccuracy(),
@@ -34,10 +34,10 @@ const AnalyticsDashboard = () => {
       ])
 
       // Safely handle API responses
-      setCategoryData(Array.isArray(categories?.data) ? categories.data : [])
+      setCategoryData(Array.isArray(categories?.data) ? categories.data.filter(item => item.label.toLowerCase() !== 'all') : [])
       setAccuracyData(typeof accuracy?.data === 'object' && accuracy.data ? accuracy.data : {})
       setMisclassifications(Array.isArray(misclassificationsData?.data) ? misclassificationsData.data : [])
-      
+
       if (isRefresh) {
         toast.success('Analytics data refreshed successfully!')
       }
@@ -63,7 +63,7 @@ const AnalyticsDashboard = () => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
     }
-    
+
     debounceTimerRef.current = setTimeout(() => {
       loadAnalyticsData(true)
       debounceTimerRef.current = null
@@ -87,34 +87,34 @@ const AnalyticsDashboard = () => {
   // Handle WebSocket updates for category changes and reclassifications
   useEffect(() => {
     if (!lastMessage) return
-    
+
     console.log('AnalyticsDashboard received WebSocket message:', lastMessage)
-    
+
     switch (lastMessage.type) {
       case 'category_updated':
         console.log('🏷️ AnalyticsDashboard received category update:', lastMessage.data)
         // Refresh analytics when categories change
         loadAnalyticsData()
         break
-        
+
       case 'reclassification_complete':
         console.log('✅ AnalyticsDashboard received reclassification complete:', lastMessage.data)
         // Refresh analytics when reclassification completes
         loadAnalyticsData()
         break
-        
+
       case 'reclassification_phase1_complete':
         console.log('✅ Phase 1 complete, refreshing analytics:', lastMessage.data)
         // Immediate refresh after Phase 1 completes
         loadAnalyticsData(true)
         break
-        
+
       case 'phase2_category_changed':
         console.log('🔄 Phase 2 category changed, debounced refresh:', lastMessage.data)
         // Debounced refresh for Phase 2 category changes (silent, no visible indicator)
         debouncedRefresh()
         break
-        
+
       case 'phase2_batch_complete':
         console.log('📦 Phase 2 batch complete, debounced refresh:', lastMessage.data)
         // Debounced refresh after Phase 2 batch if categories changed
@@ -122,7 +122,7 @@ const AnalyticsDashboard = () => {
           debouncedRefresh()
         }
         break
-        
+
       case 'reclassification_progress':
         console.log('🔄 AnalyticsDashboard received reclassification progress:', lastMessage.data)
         // Show progress for Phase 1 batches, Phase 2 is silent
@@ -130,13 +130,13 @@ const AnalyticsDashboard = () => {
           // Optionally update a progress indicator for Phase 1
         }
         break
-        
+
       case 'email_synced':
         console.log('📧 AnalyticsDashboard received email sync update:', lastMessage.data)
         // Refresh analytics when new emails are synced
         loadAnalyticsData()
         break
-        
+
       default:
         break
     }
@@ -184,32 +184,29 @@ const AnalyticsDashboard = () => {
       {/* Tab Navigation */}
       <div className="card-glass p-2">
         <div className="flex space-x-2">
-          <button 
-            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-              activeTab === 'overview' 
-                ? 'bg-slate-200/50 text-slate-800' 
-                : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100/50'
-            }`}
+          <button
+            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${activeTab === 'overview'
+              ? 'bg-slate-200/50 text-slate-800'
+              : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100/50'
+              }`}
             onClick={() => setActiveTab('overview')}
           >
             Overview
           </button>
-          <button 
-            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-              activeTab === 'accuracy' 
-                ? 'bg-slate-200/50 text-slate-800' 
-                : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100/50'
-            }`}
+          <button
+            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${activeTab === 'accuracy'
+              ? 'bg-slate-200/50 text-slate-800'
+              : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100/50'
+              }`}
             onClick={() => setActiveTab('accuracy')}
           >
             Accuracy
           </button>
-          <button 
-            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-              activeTab === 'misclassifications' 
-                ? 'bg-slate-200/50 text-slate-800' 
-                : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100/50'
-            }`}
+          <button
+            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${activeTab === 'misclassifications'
+              ? 'bg-slate-200/50 text-slate-800'
+              : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100/50'
+              }`}
             onClick={() => setActiveTab('misclassifications')}
           >
             Misclassifications
@@ -290,25 +287,25 @@ const AnalyticsDashboard = () => {
                     labelLine={false}
                     label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
                       if (!categoryData[index]) return null;
-                      
+
                       const RADIAN = Math.PI / 180;
                       const isSmallSlice = percent < 0.05; // Less than 5%
-                      
+
                       // For small slices, position label outside with more spacing
                       // For large slices, position label inside
-                      const radius = isSmallSlice 
+                      const radius = isSmallSlice
                         ? outerRadius + 35  // More space outside for small slices
                         : innerRadius + (outerRadius - innerRadius) * 0.5; // Inside for large slices
-                      
+
                       const x = cx + radius * Math.cos(-midAngle * RADIAN);
                       const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                      
+
                       // Adjust text anchor based on position
                       const textAnchor = x > cx ? 'start' : 'end';
                       const labelColor = isSmallSlice ? '#1e293b' : 'white';
                       const bgColor = isSmallSlice ? 'rgba(255,255,255,0.95)' : 'transparent';
                       const borderRadius = isSmallSlice ? '6px' : '0';
-                      
+
                       // Calculate box dimensions based on text length
                       const labelText = categoryData[index].label;
                       const percentText = `${(percent * 100).toFixed(1)}%`;
@@ -332,26 +329,26 @@ const AnalyticsDashboard = () => {
                               }}
                             />
                           )}
-                          <text 
-                            x={x} 
-                            y={y - 6} 
+                          <text
+                            x={x}
+                            y={y - 6}
                             fill={labelColor}
                             textAnchor={textAnchor}
                             dominantBaseline="middle"
                             fontSize={isSmallSlice ? "10" : "12"}
                             fontWeight="700"
-                            style={{ 
-                              textShadow: isSmallSlice 
-                                ? 'none' 
+                            style={{
+                              textShadow: isSmallSlice
+                                ? 'none'
                                 : '0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3)',
                               pointerEvents: 'none'
                             }}
                           >
                             {labelText}
-                            <tspan 
-                              x={x} 
-                              dy="12" 
-                              fontSize={isSmallSlice ? "9" : "10"} 
+                            <tspan
+                              x={x}
+                              dy="12"
+                              fontSize={isSmallSlice ? "9" : "10"}
                               fontWeight="600"
                               fill={isSmallSlice ? "#64748b" : "rgba(255,255,255,0.9)"}
                             >
@@ -368,8 +365,8 @@ const AnalyticsDashboard = () => {
                     paddingAngle={3}
                   >
                     {categoryData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
+                      <Cell
+                        key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
                         stroke="#ffffff"
                         strokeWidth={2.5}
@@ -393,7 +390,7 @@ const AnalyticsDashboard = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis dataKey="label" stroke="rgba(255,255,255,0.7)" />
                   <YAxis stroke="rgba(255,255,255,0.7)" />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{
                       backgroundColor: 'rgba(0,0,0,0.8)',
                       border: '1px solid rgba(255,255,255,0.2)',

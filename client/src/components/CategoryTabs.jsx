@@ -15,36 +15,38 @@ const CategoryTabs = ({ value, onChange, refreshTrigger }) => {
     try {
       setLoading(true)
       const response = await api.get('/realtime/categories')
-      
+
       if (response.data && response.data.categories) {
         // Server already returns categories in correct order (defaults first, then custom)
         // Separate default and custom categories
         const defaultCategories = []
         const customCategories = []
-        
+
         response.data.categories.forEach(category => {
+          if (category.name === 'All') return
+
           const categoryData = {
             id: category.name,
             label: category.name,
             color: getCategoryColor(category.name, 'hex'),
             isDefault: category.isDefault || false
           }
-          
+
           if (category.isDefault) {
             defaultCategories.push(categoryData)
           } else {
             customCategories.push(categoryData)
           }
         })
-        
+
         // Always include "All" at the beginning
         const allCategory = { id: 'All', label: 'All', color: '#64748b' }
-        
+
         // Server already returns in correct order, but ensure "Other" is last among defaults
         const otherIndex = defaultCategories.findIndex(cat => cat.id === 'Other')
         let otherCategory
         let defaultCategoriesWithoutOther = defaultCategories
-        
+
         if (otherIndex >= 0) {
           otherCategory = defaultCategories[otherIndex]
           defaultCategoriesWithoutOther = defaultCategories.filter(cat => cat.id !== 'Other')
@@ -52,7 +54,7 @@ const CategoryTabs = ({ value, onChange, refreshTrigger }) => {
           // Create "Other" category if it doesn't exist (fallback)
           otherCategory = { id: 'Other', label: 'Other', color: '#64748b', isDefault: true }
         }
-        
+
         // Final order: All, default categories (Other last), then custom categories
         const finalCategories = [allCategory, ...defaultCategoriesWithoutOther, otherCategory, ...customCategories]
         setCategories(finalCategories)
@@ -109,7 +111,7 @@ const CategoryTabs = ({ value, onChange, refreshTrigger }) => {
     if (lastMessage?.type === 'category_updated') {
       console.log('🔄 CategoryTabs: Received WebSocket category update:', lastMessage.data)
       const { type, category } = lastMessage.data
-      
+
       switch (type) {
         case 'category_added':
           console.log('➕ Adding category via WebSocket:', category.name)
@@ -129,8 +131,8 @@ const CategoryTabs = ({ value, onChange, refreshTrigger }) => {
           break
         case 'category_updated':
           console.log('✏️ Updating category via WebSocket:', category.name)
-          setCategories(prev => 
-            prev.map(cat => 
+          setCategories(prev =>
+            prev.map(cat =>
               cat.id === category.name || cat.label === category.name
                 ? { ...cat, label: category.name, id: category.name }
                 : cat
@@ -169,10 +171,9 @@ const CategoryTabs = ({ value, onChange, refreshTrigger }) => {
           className={`
             px-3 py-1.5 text-xs font-normal transition-all duration-200
             border border-slate-200 rounded-full
-            ${
-              value === category.id
-                ? 'text-slate-800 border-slate-400 bg-slate-50'
-                : 'text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50/50'
+            ${value === category.id
+              ? 'text-slate-800 border-slate-400 bg-slate-50'
+              : 'text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50/50'
             }
           `}
           whileHover={{ scale: 1.01 }}
